@@ -5,7 +5,6 @@ This is the repository for "Fusion Dance: Generating New Content via Fusion of E
 The original data can be found in the original_data folder. The final preprocessed data used for modeling can be obtained by running the `preprocess.py` script.
 
 TODO:
-* Train/Test Split - Separate out the special test set (Kyurem-B & Kyurem-W which are in-universe fusions)
 * Basic first draft model
 * Compute metrics - MSE & SSIM
 * Combine representations & see initial results
