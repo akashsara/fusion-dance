@@ -1,3 +1,14 @@
+"""
+This script is reponsible for preprocessing the original data folder.
+Since the images are in RGBA, we first need to convert them into RGB images.
+Now we need to decide what color the background should be. 
+White or black are standard, but they may impact how the model sees certain 
+Pokemon that have very dark or very light shades.
+We follow Gonzalez et. al's approach and use both. 
+They also used 2 additional noisy backgrounds, but we leave that for the future.
+Additionally, we also perform horizontal flipping for every Pokemon.
+"""
+
 import os
 from PIL import Image
 import sys
@@ -11,7 +22,7 @@ def change_background_color(image, color):
         "white": (255, 255, 255)
     }
     background = Image.new("RGBA", image.size, colors[color])
-    return Image.alpha_composite(background, image)
+    return Image.alpha_composite(background, image).convert("RGB")
 
 
 if not os.path.exists(output_dir):
