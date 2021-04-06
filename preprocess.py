@@ -15,7 +15,7 @@ Pokemon that have very dark or very light shades.
 We follow Gonzalez et. al's approach and use both. 
 In the case of training images, they also used 2 additional noisy backgrounds.
 We repeat the same.
-Additionally, we also perform horizontal flipping for every Pokemon.
+In terms of image augmentation, we perform horizontal flips as well as rotations in the 15 and 30 degree angles in two directions. We do not rotate the horizontally flipped image though.
 """
 
 import os
@@ -28,6 +28,7 @@ input_dir = sys.argv[1]
 output_dir = sys.argv[2]
 num_test = int(sys.argv[3])
 num_valid = int(sys.argv[4])
+rotations = [15, 30]
 
 
 def change_background_color(image, color):
@@ -82,15 +83,33 @@ for input_file in os.listdir(input_dir):
 
     # Augment data
     for color in colors:
-        # Change background color
+        rotation = 0
+        # Change background color & save base image
         new_sprite = change_background_color(sprite, color)
-        # Horizontally flipped copy of the image
-        # We call change background color again so that we have 2 noises
-        flipped_sprite = change_background_color(sprite, color)
-        flipped_sprite = new_sprite.transpose(Image.FLIP_LEFT_RIGHT)
-        # Create output file names
-        output_file = f"{input_file_name}_{color}BG.png"
-        flipped_output_file = f"{input_file_name}_{color}BG_flipped.png"
-        # Save image
+        output_file = f"{input_file_name}_{color}BG_0rotation.png"
         new_sprite.save(os.path.join(save_dir, output_file))
-        flipped_sprite.save(os.path.join(save_dir, flipped_output_file))
+
+        # Rotation
+        prev_angle = 0
+        for angle in rotations:
+            # Counter Clockwise Rotation
+            new_angle = np.random.randint(prev_angle, angle)
+            rotated = sprite.rotate(angle)
+            rotated = change_background_color(rotated, color)
+            output_file = f"{input_file_name}_{color}BG_{new_angle}rotation.png"
+            rotated.save(os.path.join(save_dir, output_file))
+            # Clockwise Rotation
+            new_angle = 360 - np.random.randint(prev_angle, angle)
+            rotated = sprite.rotate(angle)
+            rotated = change_background_color(rotated, color)
+            output_file = f"{input_file_name}_{color}BG_{new_angle}rotation.png"
+            rotated.save(os.path.join(save_dir, output_file))
+            # Housekeeping
+            prev_angle = angle
+
+        # Horizontal Flip
+        if "noise" in color:
+            new_sprite = change_background_color(sprite, color)
+        new_sprite = new_sprite.transpose(Image.FLIP_LEFT_RIGHT)
+        output_file = f"{input_file_name}_{color}BG_flipped.png"
+        new_sprite.save(os.path.join(save_dir, output_file))
