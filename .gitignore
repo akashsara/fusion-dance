@@ -3,3 +3,5 @@
 env/
 data/
 outputs/
+scraping_scripts/alex_onsager_fusions/
+fusions/*/
