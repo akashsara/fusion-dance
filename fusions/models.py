@@ -4,6 +4,7 @@ from torchvision import transforms
 import numpy as np
 
 
+# Ref: https://github.com/sksq96/pytorch-vae/blob/master/vae-cnn.ipynb
 class ConvolutionalAE(nn.Module):
     def __init__(
         self,
@@ -15,38 +16,54 @@ class ConvolutionalAE(nn.Module):
         padding=0,
         latent_dim=128,
         input_image_dimensions=96,
+        small_conv=False,
     ):
         super(ConvolutionalAE, self).__init__()
+        if small_conv:
+            num_layers += 1
         channel_sizes = self.calculate_channel_sizes(
             image_channels, max_filters, num_layers
-        )
-        # Calculate shape of the flattened image
-        hidden_dim, image_size = self.get_flattened_size(
-            kernel_size, stride, max_filters, input_image_dimensions, num_layers
         )
 
         # Encoder
         encoder_layers = nn.ModuleList()
-        for i, channel_size in enumerate(channel_sizes):
-            in_channels = channel_size[0]
-            out_channels = channel_size[1]
-            # Convolutional Layer
-            encoder_layers.append(
-                nn.Conv2d(
-                    in_channels=in_channels,
-                    out_channels=out_channels,
-                    kernel_size=kernel_size,
-                    stride=stride,
-                    padding=padding,
-                    bias=False,
+        # Encoder Convolutions
+        for i, (in_channels, out_channels) in enumerate(channel_sizes):
+            if small_conv and i == 0:
+                # 1x1 Convolution
+                encoder_layers.append(
+                    nn.Conv2d(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                    )
                 )
-            )
+            else:
+                # Convolutional Layer
+                encoder_layers.append(
+                    nn.Conv2d(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=kernel_size,
+                        stride=stride,
+                        padding=padding,
+                        bias=False,
+                    )
+                )
             # Batch Norm
             encoder_layers.append(nn.BatchNorm2d(out_channels))
             # ReLU
             encoder_layers.append(nn.ReLU())
         # Flatten Encoder Output
         encoder_layers.append(nn.Flatten())
+
+        # Calculate shape of the flattened image
+        hidden_dim, image_size = self.get_flattened_size(
+            input_image_dimensions, encoder_layers
+        )
+
         # Hidden Dim -> Latent Dim
         encoder_layers.append(nn.Linear(hidden_dim, latent_dim))
         encoder_layers.append(nn.Sigmoid())
@@ -59,20 +76,31 @@ class ConvolutionalAE(nn.Module):
         decoder_layers.append(nn.Sigmoid())
         # Unflatten to a shape of (Channels, Height, Width)
         decoder_layers.append(nn.Unflatten(1, (max_filters, image_size, image_size)))
-        for i, channel_size in enumerate(channel_sizes[::-1]):
-            in_channels = channel_size[1]
-            out_channels = channel_size[0]
-            # Add Transposed Convolutional Layer
-            decoder_layers.append(
-                nn.ConvTranspose2d(
-                    in_channels=in_channels,
-                    out_channels=out_channels,
-                    kernel_size=kernel_size,
-                    stride=stride,
-                    padding=padding,
-                    bias=False,
+        # Decoder Convolutions
+        for i, (out_channels, in_channels) in enumerate(channel_sizes[::-1]):
+            if small_conv and i == num_layers - 1:
+                # 1x1 Transposed Convolution
+                decoder_layers.append(
+                    nn.ConvTranspose2d(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                    )
                 )
-            )
+            else:
+                # Add Transposed Convolutional Layer
+                decoder_layers.append(
+                    nn.ConvTranspose2d(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=kernel_size,
+                        stride=stride,
+                        padding=padding,
+                        bias=False,
+                    )
+                )
             # Batch Norm
             decoder_layers.append(nn.BatchNorm2d(out_channels))
             # ReLU if not final layer
@@ -83,13 +111,22 @@ class ConvolutionalAE(nn.Module):
                 decoder_layers.append(nn.Sigmoid())
         self.decoder = nn.Sequential(*decoder_layers)
 
-    def get_flattened_size(
-        self, kernel_size, stride, filters, input_image_dimensions, num_layers
-    ):
-        x = input_image_dimensions
-        for i in range(num_layers):
-            x = ((x - kernel_size) // stride) + 1
-        return filters * x * x, x
+    def calculate_layer_size(self, input_size, kernel_size, stride, padding=0):
+        numerator = input_size - kernel_size + (2 * padding)
+        denominator = stride
+        return (numerator // denominator) + 1
+
+    def get_flattened_size(self, image_size, encoder_layers):
+        for layer in encoder_layers:
+            if "Conv2d" in str(layer):
+                kernel_size = layer.kernel_size[0]
+                stride = layer.stride[0]
+                padding = layer.padding[0]
+                filters = layer.out_channels
+                image_size = self.calculate_layer_size(
+                    image_size, kernel_size, stride, padding
+                )
+        return filters * image_size * image_size, image_size
 
     def calculate_channel_sizes(self, image_channels, max_filters, num_layers):
         channel_sizes = [(image_channels, max_filters // np.power(2, num_layers - 1))]
@@ -107,7 +144,6 @@ class ConvolutionalAE(nn.Module):
         return reconstructed
 
 
-# Ref: https://github.com/sksq96/pytorch-vae/blob/master/vae-cnn.ipynb
 class ConvolutionalVAE(nn.Module):
     def __init__(
         self,
@@ -119,27 +155,42 @@ class ConvolutionalVAE(nn.Module):
         padding=0,
         latent_dim=128,
         input_image_dimensions=96,
+        small_conv=False,
     ):
         super(ConvolutionalVAE, self).__init__()
+        if small_conv:
+            num_layers += 1
         channel_sizes = self.calculate_channel_sizes(
             image_channels, max_filters, num_layers
         )
+
         # Encoder
         encoder_layers = nn.ModuleList()
-        for i, channel_size in enumerate(channel_sizes):
-            in_channels = channel_size[0]
-            out_channels = channel_size[1]
-            # Convolutional Layer
-            encoder_layers.append(
-                nn.Conv2d(
-                    in_channels=in_channels,
-                    out_channels=out_channels,
-                    kernel_size=kernel_size,
-                    stride=stride,
-                    padding=padding,
-                    bias=False,
+        # Encoder Convolutions
+        for i, (in_channels, out_channels) in enumerate(channel_sizes):
+            if small_conv and i == 0:
+                # 1x1 Convolution
+                encoder_layers.append(
+                    nn.Conv2d(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                    )
                 )
-            )
+            else:
+                # Convolutional Layer
+                encoder_layers.append(
+                    nn.Conv2d(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=kernel_size,
+                        stride=stride,
+                        padding=padding,
+                        bias=False,
+                    )
+                )
             # Batch Norm
             encoder_layers.append(nn.BatchNorm2d(out_channels))
             # ReLU
@@ -149,9 +200,7 @@ class ConvolutionalVAE(nn.Module):
         self.encoder = nn.Sequential(*encoder_layers)
 
         # Calculate shape of the flattened image
-        hidden_dim, image_size = self.get_flattened_size(
-            kernel_size, stride, max_filters, input_image_dimensions
-        )
+        hidden_dim, image_size = self.get_flattened_size(input_image_dimensions)
 
         # Latent Space
         self.fc_mu = nn.Linear(hidden_dim, latent_dim)
@@ -163,20 +212,31 @@ class ConvolutionalVAE(nn.Module):
         decoder_layers.append(nn.Linear(latent_dim, hidden_dim))
         # Unflatten to a shape of (Channels, Height, Width)
         decoder_layers.append(nn.Unflatten(1, (max_filters, image_size, image_size)))
-        for i, channel_size in enumerate(channel_sizes[::-1]):
-            in_channels = channel_size[1]
-            out_channels = channel_size[0]
-            # Add Transposed Convolutional Layer
-            decoder_layers.append(
-                nn.ConvTranspose2d(
-                    in_channels=in_channels,
-                    out_channels=out_channels,
-                    kernel_size=kernel_size,
-                    stride=stride,
-                    padding=padding,
-                    bias=False,
+        # Decoder Convolutions
+        for i, (out_channels, in_channels) in enumerate(channel_sizes[::-1]):
+            if small_conv and i == num_layers - 1:
+                # 1x1 Transposed Convolution
+                decoder_layers.append(
+                    nn.ConvTranspose2d(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                    )
                 )
-            )
+            else:
+                # Add Transposed Convolutional Layer
+                decoder_layers.append(
+                    nn.ConvTranspose2d(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=kernel_size,
+                        stride=stride,
+                        padding=padding,
+                        bias=False,
+                    )
+                )
             # Batch Norm
             decoder_layers.append(nn.BatchNorm2d(out_channels))
             # ReLU if not final layer
@@ -187,12 +247,22 @@ class ConvolutionalVAE(nn.Module):
                 decoder_layers.append(nn.Sigmoid())
         self.decoder = nn.Sequential(*decoder_layers)
 
-    def get_flattened_size(self, kernel_size, stride, filters, input_image_dimensions):
-        x = input_image_dimensions
+    def calculate_layer_size(self, input_size, kernel_size, stride, padding=0):
+        numerator = input_size - kernel_size + (2 * padding)
+        denominator = stride
+        return (numerator // denominator) + 1
+
+    def get_flattened_size(self, image_size):
         for layer in self.encoder:
             if "Conv2d" in str(layer):
-                x = ((x - kernel_size) // stride) + 1
-        return filters * x * x, x
+                kernel_size = layer.kernel_size[0]
+                stride = layer.stride[0]
+                padding = layer.padding[0]
+                filters = layer.out_channels
+                image_size = self.calculate_layer_size(
+                    image_size, kernel_size, stride, padding
+                )
+        return filters * image_size * image_size, image_size
 
     def calculate_channel_sizes(self, image_channels, max_filters, num_layers):
         channel_sizes = [(image_channels, max_filters // np.power(2, num_layers - 1))]
