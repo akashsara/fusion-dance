@@ -1,5 +1,6 @@
 .ipynb_checkpoints/
 .vscode/
+__pycache__/
 env/
 data/*
 !data/original_data.zip
