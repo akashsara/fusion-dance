@@ -63,11 +63,26 @@ num_images = int(sys.argv[3])
 model_dirs = sys.argv[4:]
 
 images_to_load = pick_images(model_dirs[0], num_images)
+
+caption = "base"
+images = get_images(base_dir, images_to_load)
+fig, axis = make_image_grid(images, caption)
+plt.savefig(os.path.join(output_dir, f"{caption}.png"))
+print(caption)
+
 for model_dir in model_dirs:
     if model_dir[-1] == '\\':
-        caption = model_dir.split('\\')[-3]
+        split = model_dir.split('\\')
+        if split[-2] == "generated":
+            caption = split[-3]
+        else:
+            caption = split[-2]
     else:
-        caption = model_dir.split('\\')[-2]
+        split = model_dir.split('\\')
+        if split[-1] == "generated":
+            caption = split[-2]
+        else:
+            caption = split[-1]
     images = get_images(model_dir, images_to_load)
     fig, axis = make_image_grid(images, caption)
     plt.savefig(os.path.join(output_dir, f"{caption}.png"))
