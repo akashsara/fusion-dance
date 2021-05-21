@@ -2,6 +2,6 @@
 .vscode/
 env/
 data/*
-!data/original_data/
+!data/original_data.zip
 outputs/
 fusions/*/
