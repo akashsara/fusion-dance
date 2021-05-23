@@ -58,8 +58,8 @@ class FusionDataset(torch.utils.data.Dataset):
         fusion_filename = self.all_images[index]
         # Get two base names
         first, second, background, _ = fusion_filename.split(".")
-        first = "004" #self.to_3_digit(first)
-        second = "004" #self.to_3_digit(second)
+        first = self.to_3_digit(first)
+        second = self.to_3_digit(second)
         # Get Base
         image, base_filename = self.get_base_image(first, background)
         base = self.transform(image)
