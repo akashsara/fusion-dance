@@ -43,7 +43,6 @@ small_conv = True  # To use the 1x1 convolution layer
 fusion_mode = "encoder"  # encoder, decoder, both
 pretrained_model_path = "outputs\\convolutional_autoencoder_v9\\model.pt"
 freeze_conv_for_fusions = True
-fusion_training_epoch_start = 0
 
 # Path to Data
 data_prefix = "data\\final\\standard"
@@ -209,51 +208,50 @@ for epoch in range(epochs):
     if freeze_conv_for_fusions:
         models.toggle_layer_freezing(freezable_layers, trainable=False)
 
-    if epoch >= fusion_training_epoch_start:
-        # Training Loop - Fusions
-        for iteration, batch in enumerate(tqdm(train_fusion_dataloader)):
-            # Reset gradients back to zero for this iteration
-            optimizer.zero_grad()
+    # Training Loop - Fusions
+    for iteration, batch in enumerate(tqdm(train_fusion_dataloader)):
+        # Reset gradients back to zero for this iteration
+        optimizer.zero_grad()
 
-            # Move batch to device
-            _, (base, fusee, fusion) = batch  # (names), (images)
-            base = base.to(device)
-            fusee = fusee.to(device)
-            fusion = fusion.to(device)
+        # Move batch to device
+        _, (base, fusee, fusion) = batch  # (names), (images)
+        base = base.to(device)
+        fusee = fusee.to(device)
+        fusion = fusion.to(device)
 
-            with torch.no_grad():
-                # Get Encoder Output
-                base_embedding = model.encoder(base)
-                fusee_embedding = model.encoder(fusee)
-                # Midpoint Embedding
-                midpoint_embedding = (base_embedding * 0.4) + (fusee_embedding * 0.6)
+        with torch.no_grad():
+            # Get Encoder Output
+            base_embedding = model.encoder(base)
+            fusee_embedding = model.encoder(fusee)
+            # Midpoint Embedding
+            midpoint_embedding = (base_embedding * 0.4) + (fusee_embedding * 0.6)
 
-            if fusion_mode == "encoder" or fusion_mode == "both":
-                # Run our model & get outputs
-                fusion_embedding = model.encoder(fusion)
-                # Calculate reconstruction loss:
-                # Fusion Embedding vs Midpoint Embedding
-                batch_loss = criterion(fusion_embedding, midpoint_embedding)
-                # Backprop
-                batch_loss.backward()
-                # Add the batch's loss to the total loss for the epoch
-                train_fusion_loss += batch_loss.item()
+        if fusion_mode == "encoder" or fusion_mode == "both":
+            # Run our model & get outputs
+            fusion_embedding = model.encoder(fusion)
+            # Calculate reconstruction loss:
+            # Fusion Embedding vs Midpoint Embedding
+            batch_loss = criterion(fusion_embedding, midpoint_embedding)
+            # Backprop
+            batch_loss.backward()
+            # Add the batch's loss to the total loss for the epoch
+            train_fusion_loss += batch_loss.item()
 
-            if fusion_mode == "decoder" or fusion_mode == "both":
-                # Run our model & get outputs
-                fusion_output = model.decoder(midpoint_embedding)
-                # Calculate reconstruction loss:
-                # Midpoint Embedding Output vs Original Fusion
-                batch_loss = criterion(fusion_output, fusion)
-                # Backprop
-                batch_loss.backward()
-                # Add the batch's loss to the total loss for the epoch
-                train_fusion_loss += batch_loss.item()
+        if fusion_mode == "decoder" or fusion_mode == "both":
+            # Run our model & get outputs
+            fusion_output = model.decoder(midpoint_embedding)
+            # Calculate reconstruction loss:
+            # Midpoint Embedding Output vs Original Fusion
+            batch_loss = criterion(fusion_output, fusion)
+            # Backprop
+            batch_loss.backward()
+            # Add the batch's loss to the total loss for the epoch
+            train_fusion_loss += batch_loss.item()
 
-            # Update our optimizer parameters
-            # We call it out here instead of inside the if because
-            # the gradients are accumulated in case both conditions are true
-            optimizer.step()
+        # Update our optimizer parameters
+        # We call it out here instead of inside the if because
+        # the gradients are accumulated in case both conditions are true
+        optimizer.step()
 
     if freeze_conv_for_fusions:
         models.toggle_layer_freezing(freezable_layers, trainable=True)
