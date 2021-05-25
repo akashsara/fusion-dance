@@ -43,6 +43,7 @@ small_conv = True  # To use the 1x1 convolution layer
 fusion_mode = "encoder"  # encoder, decoder, both
 pretrained_model_path = "outputs\\convolutional_autoencoder_v9\\model.pt"
 freeze_conv_for_fusions = True
+train_all = True # True: Train on normal data + fusions; False: Only Fusions
 
 # Path to Data
 data_prefix = "data\\final\\standard"
@@ -201,9 +202,29 @@ all_val_loss = []
 all_val_fusion_loss = []
 
 for epoch in range(epochs):
+    train_loss = 0
     val_loss = 0
     train_fusion_loss = 0
     val_fusion_loss = 0
+
+    if train_all:
+        # Training Loop - Standard
+        for iteration, batch in enumerate(tqdm(train_dataloader)):
+            # Reset gradients back to zero for this iteration
+            optimizer.zero_grad()
+            # Move batch to device
+            _, batch = batch  # Returns key, value for each Pokemon
+            batch = batch.to(device)
+            # Run our model & get outputs
+            reconstructed = model(batch)
+            # Calculate reconstruction loss
+            batch_loss = criterion(batch, reconstructed)
+            # Backprop
+            batch_loss.backward()
+            # Update our optimizer parameters
+            optimizer.step()
+            # Add the batch's loss to the total loss for the epoch
+            train_loss += batch_loss.item()
 
     if freeze_conv_for_fusions:
         models.toggle_layer_freezing(freezable_layers, trainable=False)
@@ -333,6 +354,10 @@ for epoch in range(epochs):
     all_fusion_samples.append(fusion_epoch_sample.detach().cpu())
 
     # Compute the average losses for this epoch
+    if train_all:
+        train_loss = train_loss / len(train_dataloader)
+        all_train_loss.append(train_loss)
+
     train_fusion_loss = train_fusion_loss / len(train_fusion_dataloader)
     all_train_fusion_loss.append(train_fusion_loss)
 
@@ -345,6 +370,7 @@ for epoch in range(epochs):
     # Print Metrics
     print(
         f"\nEpoch: {epoch+1}/{epochs}:\
+        \nTrain Loss = {train_loss}\
         \nVal Loss = {val_loss}\
         \nTrain Fusion Loss = {train_fusion_loss}\
         \nVal Fusion Loss = {val_fusion_loss}"
