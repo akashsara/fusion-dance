@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
-from pytorch_msssim import ssim
+import pytorch_msssim
 from tqdm import tqdm
 
 import utils.data as data
@@ -33,6 +33,7 @@ latent_dim = 256
 use_noise_images = True
 small_conv = True  # To use the 1x1 convolution layer
 use_sum = False  # Use a sum instead of a mean for our loss function
+use_ssim_loss = False
 
 data_prefix = "data\\final\\standard"
 train_data_folder = os.path.join(data_prefix, "train")
@@ -120,6 +121,12 @@ model.to(device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
+ssim_module = None
+if use_ssim_loss:
+    ssim_module = pytorch_msssim.SSIM(
+        data_range=1.0, win_size=11, win_sigma=1.5, K=(0.01, 0.03)
+    )
+
 ################################################################################
 ################################### Training ###################################
 ################################################################################
@@ -150,8 +157,8 @@ for epoch in range(epochs):
         reconstructed, mu, log_var = model(batch)
 
         # Calculate reconstruction loss
-        batch_loss, batch_recon_loss, batch_kl_d = loss.VAE_loss(
-            batch, reconstructed, mu, log_var, use_sum
+        batch_loss, (batch_mse, batch_ssim, batch_kl_d) = loss.VAE_loss(
+            reconstructed, batch, mu, log_var, use_sum=use_sum, ssim_module=ssim_module
         )
 
         # Backprop
@@ -162,7 +169,7 @@ for epoch in range(epochs):
 
         # Add the batch's loss to the total loss for the epoch
         train_loss += batch_loss.item()
-        train_recon_loss += batch_recon_loss.item()
+        train_recon_loss += batch_mse.item() + batch_ssim.item()
         train_kl_d += batch_kl_d.item()
 
     # Validation Loop
@@ -176,13 +183,18 @@ for epoch in range(epochs):
             reconstructed, mu, log_var = model(batch)
 
             # Calculate reconstruction loss
-            batch_loss, batch_recon_loss, batch_kl_d = loss.VAE_loss(
-                batch, reconstructed, mu, log_var, use_sum
+            batch_loss, (batch_mse, batch_ssim, batch_kl_d) = loss.VAE_loss(
+                reconstructed,
+                batch,
+                mu,
+                log_var,
+                use_sum=use_sum,
+                ssim_module=ssim_module,
             )
 
             # Add the batch's loss to the total loss for the epoch
             val_loss += batch_loss.item()
-            val_recon_loss += batch_recon_loss.item()
+            val_recon_loss += batch_mse.item() + batch_ssim.item()
             val_kl_d += batch_kl_d.item()
 
         # Get reconstruction of our sample
@@ -248,7 +260,7 @@ with torch.no_grad():
 
         # Calculate Metrics
         mse = nn.functional.mse_loss(reconstructed, image)
-        ssim_score = ssim(
+        ssim_score = pytorch_msssim.ssim(
             reconstructed,
             image,
             data_range=1.0,
