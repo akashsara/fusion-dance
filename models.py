@@ -304,3 +304,9 @@ def get_freezable_layers(model):
 def toggle_layer_freezing(layers, trainable):
     for layer in layers:
         layer.requires_grad_(trainable)
+
+
+def set_learning_rate(optimizer, learning_rate):
+    for group in optimizer.param_groups:
+        group["lr"] = learning_rate
+    return optimizer
