@@ -1,3 +1,5 @@
+# NOTE: The contents of this file are in all likelihood outdated
+
 import os
 
 import matplotlib.pyplot as plt
@@ -213,7 +215,7 @@ for epoch in range(epochs):
         # Run our model & get outputs
         reconstructed, mu, log_var = model(batch)
         # Calculate reconstruction loss
-        _, batch_loss, batch_recon_loss, batch_kl_d = loss.VAEWeightedLoss(
+        _, batch_loss, batch_recon_loss, batch_kl_d = loss.VAE_weighted_loss(
             batch, reconstructed, mu, log_var, reconstruction_weight, kl_weight, use_sum
         )
         # Backprop
@@ -234,7 +236,7 @@ for epoch in range(epochs):
             # Run our model & get outputs
             reconstructed, mu, log_var = model(batch)
             # Calculate reconstruction loss
-            batch_loss, _, batch_recon_loss, batch_kl_d = loss.VAEWeightedLoss(
+            batch_loss, _, batch_recon_loss, batch_kl_d = loss.VAE_weighted_loss(
                 batch, reconstructed, mu, log_var, use_sum=use_sum
             )
             # Add the batch's loss to the total loss for the epoch

@@ -24,7 +24,7 @@ epochs = 2
 batch_size = 64
 num_dataloader_workers = 0
 
-experiment_name = f"test342"
+experiment_name = f"convolutional_vae_v10"
 
 num_layers = 4
 max_filters = 512
@@ -150,7 +150,7 @@ for epoch in range(epochs):
         reconstructed, mu, log_var = model(batch)
 
         # Calculate reconstruction loss
-        batch_loss, batch_recon_loss, batch_kl_d = loss.VAELoss(
+        batch_loss, batch_recon_loss, batch_kl_d = loss.VAE_loss(
             batch, reconstructed, mu, log_var, use_sum
         )
 
@@ -176,7 +176,7 @@ for epoch in range(epochs):
             reconstructed, mu, log_var = model(batch)
 
             # Calculate reconstruction loss
-            batch_loss, batch_recon_loss, batch_kl_d = loss.VAELoss(
+            batch_loss, batch_recon_loss, batch_kl_d = loss.VAE_loss(
                 batch, reconstructed, mu, log_var, use_sum
             )
 
