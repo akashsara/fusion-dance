@@ -26,6 +26,7 @@ _ = torch.manual_seed(seed)
 
 
 learning_rate = 1e-4
+fusion_learning_rate = 1e-4
 epochs = 2
 batch_size = 64
 num_dataloader_workers = 0
@@ -182,7 +183,7 @@ model = models.ConvolutionalAE(
 )
 model.to(device)
 
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+optimizer = torch.optim.Adam(model.parameters(), lr=fusion_learning_rate)
 criterion = nn.MSELoss(reduction="mean")
 ################################################################################
 ################################### Training ###################################
@@ -205,6 +206,9 @@ for epoch in range(epochs):
     train_fusion_loss = 0
     val_fusion_loss = 0
 
+    if learning_rate != fusion_learning_rate:
+        optimizer = models.set_learning_rate(optimizer, learning_rate)
+
     # Training Loop - Standard
     for iteration, batch in enumerate(tqdm(train_dataloader)):
         # Reset gradients back to zero for this iteration
@@ -225,6 +229,9 @@ for epoch in range(epochs):
 
     if freeze_conv_for_fusions:
         models.toggle_layer_freezing(freezable_layers, trainable=False)
+
+    if learning_rate != fusion_learning_rate:
+        optimizer = models.set_learning_rate(optimizer, fusion_learning_rate)
 
     if epoch >= fusion_training_epoch_start:
         # Training Loop - Fusions
