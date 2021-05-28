@@ -202,6 +202,36 @@ all_train_fusion_loss = []
 all_val_loss = []
 all_val_fusion_loss = []
 
+# Get an initial "epoch 0" sample
+with torch.no_grad():
+    # Get reconstruction of our normal Pokemon
+    epoch_sample = model(sample.to(device))
+
+    # Get base images
+    sample_base, sample_fusee, _ = (
+        fusion_sample[:, 0],
+        fusion_sample[:, 1],
+        fusion_sample[:, 2],
+    )
+    sample_base = sample_base.to(device)
+    sample_fusee = sample_fusee.to(device)
+    # Get Embeddings of Base Images
+    sample_base_embedding = model.encoder(sample_base)
+    sample_fusee_embedding = model.encoder(sample_fusee)
+    # Get Midpoint -> Decoder -> Fusion
+    sample_midpoint_embedding = (sample_base_embedding * 0.4) + (
+        sample_fusee_embedding * 0.6
+    )
+    sample_fusion = model.decoder(sample_midpoint_embedding)
+    # Group the images together
+    fusion_epoch_sample = torch.stack(
+        (sample_base, sample_fusee, sample_fusion), dim=1
+    ).flatten(end_dim=1)
+
+# Add sample reconstruction to our list
+all_samples.append(epoch_sample.detach().cpu())
+all_fusion_samples.append(fusion_epoch_sample.detach().cpu())
+
 for epoch in range(epochs):
     train_loss = 0
     val_loss = 0
