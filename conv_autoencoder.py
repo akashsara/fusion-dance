@@ -7,7 +7,7 @@ import torch.nn as nn
 from IPython.display import HTML
 from matplotlib import animation, colors
 from PIL import Image
-from pytorch_msssim import ssim
+import pytorch_msssim
 from torchvision import transforms
 from tqdm import tqdm
 
@@ -36,6 +36,9 @@ image_size = 64
 latent_dim = 256
 use_noise_images = True
 small_conv = True  # To use the 1x1 convolution layer
+use_ssim_loss = False
+mse_weight = 1
+ssim_weight = 1
 
 data_prefix = "data\\final\\standard"
 train_data_folder = os.path.join(data_prefix, "train")
@@ -122,7 +125,15 @@ model = models.ConvolutionalAE(
 model.to(device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-criterion = nn.MSELoss(reduction="mean")
+
+ssim_module = None
+if use_ssim_loss:
+    # Can only be used with use_sum=False due to a bug in the library
+    # Autoencoder does that anyway so no issues
+    ssim_module = pytorch_msssim.SSIM(
+        data_range=1.0, win_size=11, win_sigma=1.5, K=(0.01, 0.03)
+    )
+
 ################################################################################
 ################################### Training ###################################
 ################################################################################
@@ -153,7 +164,14 @@ for epoch in range(epochs):
         # Run our model & get outputs
         reconstructed = model(batch)
         # Calculate reconstruction loss
-        batch_loss = criterion(batch, reconstructed)
+        batch_loss = loss.mse_ssim_loss(
+            batch,
+            reconstructed,
+            use_sum=False,
+            ssim_module=ssim_module,
+            mse_weight=mse_weight,
+            ssim_weight=ssim_weight,
+        )
         # Backprop
         batch_loss.backward()
         # Update our optimizer parameters
@@ -170,7 +188,14 @@ for epoch in range(epochs):
             # Run our model & get outputs
             reconstructed = model(batch)
             # Calculate reconstruction loss
-            batch_loss = criterion(batch, reconstructed)
+            batch_loss = loss.mse_ssim_loss(
+                batch,
+                reconstructed,
+                use_sum=False,
+                ssim_module=ssim_module,
+                mse_weight=mse_weight,
+                ssim_weight=ssim_weight,
+            )
             # Add the batch's loss to the total loss for the epoch
             val_loss += batch_loss.item()
         # Get reconstruction of our sample
@@ -230,7 +255,7 @@ with torch.no_grad():
 
         # Calculate Metrics
         mse = nn.functional.mse_loss(reconstructed, image)
-        ssim_score = ssim(
+        ssim_score = pytorch_msssim.ssim(
             reconstructed,
             image,
             data_range=1.0,
