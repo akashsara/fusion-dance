@@ -7,7 +7,7 @@ import torch.nn as nn
 from IPython.display import HTML
 from matplotlib import animation, colors
 from PIL import Image
-from pytorch_msssim import ssim
+import pytorch_msssim
 from torchvision import transforms
 from tqdm import tqdm
 
@@ -27,30 +27,33 @@ _ = torch.manual_seed(seed)
 
 learning_rate = 1e-4
 fusion_learning_rate = 1e-4
-epochs = 2
+epochs = 25
 batch_size = 64
-num_dataloader_workers = 0
+num_dataloader_workers = 2
 
-experiment_name = f"test996"
+experiment_name = f"test_model_v1"
 
 num_layers = 4
 max_filters = 512
 image_size = 64
-latent_dim = 256
+latent_dim = 2048
 use_noise_images = True
 small_conv = True  # To use the 1x1 convolution layer
+use_ssim_loss = False
+mse_weight = 1
+ssim_weight = 1
 
 # Fusion Parameters
-fusion_mode = "encoder"  # encoder, decoder, both
+fusion_mode = "both"  # encoder, decoder, both
 freeze_conv_for_fusions = True
 fusion_training_epoch_start = 0
 
 # Path to Data
-data_prefix = "data\\final\\standard"
-fusion_data_prefix = "data\\final\\fusions"
+data_prefix = "path_to_data_folder"
+fusion_data_prefix = "path_to_fusion_data_folder"
 
 # Output base path
-output_prefix = f"data\\{experiment_name}"
+output_prefix = f"path_to_output_folder"
 
 train_data_folder = os.path.join(data_prefix, "train")
 val_data_folder = os.path.join(data_prefix, "val")
@@ -184,7 +187,15 @@ model = models.ConvolutionalAE(
 model.to(device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=fusion_learning_rate)
-criterion = nn.MSELoss(reduction="mean")
+
+ssim_module = None
+if use_ssim_loss:
+    # Can only be used with use_sum=False due to a bug in the library
+    # Autoencoder does that anyway so no issues
+    ssim_module = pytorch_msssim.SSIM(
+        data_range=1.0, win_size=11, win_sigma=1.5, K=(0.01, 0.03)
+    )
+
 ################################################################################
 ################################### Training ###################################
 ################################################################################
@@ -249,7 +260,14 @@ for epoch in range(epochs):
         # Run our model & get outputs
         reconstructed = model(batch)
         # Calculate reconstruction loss
-        batch_loss = criterion(batch, reconstructed)
+        batch_loss = loss.mse_ssim_loss(
+            batch,
+            reconstructed,
+            use_sum=False,
+            ssim_module=ssim_module,
+            mse_weight=mse_weight,
+            ssim_weight=ssim_weight,
+        )
         # Backprop
         batch_loss.backward()
         # Update our optimizer parameters
@@ -287,7 +305,15 @@ for epoch in range(epochs):
                 fusion_embedding = model.encoder(fusion)
                 # Calculate reconstruction loss:
                 # Fusion Embedding vs Midpoint Embedding
-                batch_loss = criterion(fusion_embedding, midpoint_embedding)
+                # Can't use SSIM here
+                batch_loss = loss.mse_ssim_loss(
+                    midpoint_embedding,
+                    fusion_embedding,
+                    use_sum=False,
+                    ssim_module=None,
+                    mse_weight=mse_weight,
+                    ssim_weight=ssim_weight,
+                )
                 # Backprop
                 batch_loss.backward()
                 # Add the batch's loss to the total loss for the epoch
@@ -298,7 +324,14 @@ for epoch in range(epochs):
                 fusion_output = model.decoder(midpoint_embedding)
                 # Calculate reconstruction loss:
                 # Midpoint Embedding Output vs Original Fusion
-                batch_loss = criterion(fusion_output, fusion)
+                batch_loss = loss.mse_ssim_loss(
+                    fusion,
+                    fusion_output,
+                    use_sum=False,
+                    ssim_module=ssim_module,
+                    mse_weight=mse_weight,
+                    ssim_weight=ssim_weight,
+                )
                 # Backprop
                 batch_loss.backward()
                 # Add the batch's loss to the total loss for the epoch
@@ -321,7 +354,14 @@ for epoch in range(epochs):
             # Run our model & get outputs
             reconstructed = model(batch)
             # Calculate reconstruction loss
-            batch_loss = criterion(batch, reconstructed)
+            batch_loss = loss.mse_ssim_loss(
+                batch,
+                reconstructed,
+                use_sum=False,
+                ssim_module=ssim_module,
+                mse_weight=mse_weight,
+                ssim_weight=ssim_weight,
+            )
             # Add the batch's loss to the total loss for the epoch
             val_loss += batch_loss.item()
 
@@ -345,7 +385,15 @@ for epoch in range(epochs):
                 fusion_embedding = model.encoder(fusion)
                 # Calculate reconstruction loss:
                 # Fusion Embedding vs Midpoint Embedding
-                batch_loss = criterion(fusion_embedding, midpoint_embedding)
+                # Can't use SSIM here
+                batch_loss = loss.mse_ssim_loss(
+                    midpoint_embedding,
+                    fusion_embedding,
+                    use_sum=False,
+                    ssim_module=None,
+                    mse_weight=mse_weight,
+                    ssim_weight=ssim_weight,
+                )
                 # Add the batch's loss to the total loss for the epoch
                 val_fusion_loss += batch_loss.item()
 
@@ -354,7 +402,14 @@ for epoch in range(epochs):
                 fusion_output = model.decoder(midpoint_embedding)
                 # Calculate reconstruction loss:
                 # Midpoint Embedding Output vs Original Fusion
-                batch_loss = criterion(fusion_output, fusion)
+                batch_loss = loss.mse_ssim_loss(
+                    fusion,
+                    fusion_output,
+                    use_sum=False,
+                    ssim_module=ssim_module,
+                    mse_weight=mse_weight,
+                    ssim_weight=ssim_weight,
+                )
                 # Add the batch's loss to the total loss for the epoch
                 val_fusion_loss += batch_loss.item()
 
@@ -453,7 +508,7 @@ with torch.no_grad():
 
         # Calculate Metrics
         mse = nn.functional.mse_loss(reconstructed, image)
-        ssim_score = ssim(
+        ssim_score = pytorch_msssim.ssim(
             reconstructed,
             image,
             data_range=1.0,
@@ -505,7 +560,7 @@ with torch.no_grad():
         # Calculate Metrics
         # Print Metrics - Fusion vs Input Fusion
         mse = nn.functional.mse_loss(fusion_fused_output, fusion)
-        ssim_score = ssim(
+        ssim_score = pytorch_msssim.ssim(
             fusion_fused_output,
             fusion,
             data_range=1.0,
@@ -515,7 +570,7 @@ with torch.no_grad():
         )
         # Print Metrics - Fusion vs Autoencoded Fusion
         mse_autoencoded = nn.functional.mse_loss(fusion_fused_output, fusion_ae_output)
-        ssim_score_autoencoded = ssim(
+        ssim_score_autoencoded = pytorch_msssim.ssim(
             fusion_fused_output,
             fusion_ae_output,
             data_range=1.0,
