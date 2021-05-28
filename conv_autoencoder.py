@@ -145,7 +145,7 @@ all_val_loss = []
 
 # Get an initial "epoch 0" sample
 with torch.no_grad():
-    epoch_sample, _, _ = model(sample.to(device))
+    epoch_sample = model(sample.to(device))
 
 # Add sample reconstruction to our list
 all_samples.append(epoch_sample.detach().cpu())
