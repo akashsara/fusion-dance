@@ -45,7 +45,7 @@ def VAE_loss(
         reconstructed_x,
         x,
         use_sum,
-        ssim_modoule=ssim_module,
+        ssim_module=ssim_module,
         mse_weight=mse_weight,
         ssim_weight=ssim_weight,
     )
