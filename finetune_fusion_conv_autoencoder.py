@@ -263,7 +263,7 @@ for epoch in range(epochs):
             # Run our model & get outputs
             reconstructed = model(batch)
             # Calculate reconstruction loss
-            batch_loss = loss.mse_ssim_loss(
+            batch_loss, _, _ = loss.mse_ssim_loss(
                 batch,
                 reconstructed,
                 use_sum=False,
@@ -308,7 +308,7 @@ for epoch in range(epochs):
             # Calculate reconstruction loss:
             # Fusion Embedding vs Midpoint Embedding
             # Can't use SSIM here
-            batch_loss = loss.mse_ssim_loss(
+            batch_loss, _, _ = loss.mse_ssim_loss(
                 midpoint_embedding,
                 fusion_embedding,
                 use_sum=False,
@@ -326,7 +326,7 @@ for epoch in range(epochs):
             fusion_output = model.decoder(midpoint_embedding)
             # Calculate reconstruction loss:
             # Midpoint Embedding Output vs Original Fusion
-            batch_loss = loss.mse_ssim_loss(
+            batch_loss, _, _ = loss.mse_ssim_loss(
                 fusion,
                 fusion_output,
                 use_sum=False,
@@ -356,7 +356,7 @@ for epoch in range(epochs):
             # Run our model & get outputs
             reconstructed = model(batch)
             # Calculate reconstruction loss
-            batch_loss = loss.mse_ssim_loss(
+            batch_loss, _, _ = loss.mse_ssim_loss(
                 batch,
                 reconstructed,
                 use_sum=False,
@@ -388,7 +388,7 @@ for epoch in range(epochs):
                 # Calculate reconstruction loss:
                 # Fusion Embedding vs Midpoint Embedding
                 # Can't use SSIM here
-                batch_loss = loss.mse_ssim_loss(
+                batch_loss, _, _ = loss.mse_ssim_loss(
                     midpoint_embedding,
                     fusion_embedding,
                     use_sum=False,
@@ -404,7 +404,7 @@ for epoch in range(epochs):
                 fusion_output = model.decoder(midpoint_embedding)
                 # Calculate reconstruction loss:
                 # Midpoint Embedding Output vs Original Fusion
-                batch_loss = loss.mse_ssim_loss(
+                batch_loss, _, _ = loss.mse_ssim_loss(
                     fusion,
                     fusion_output,
                     use_sum=False,

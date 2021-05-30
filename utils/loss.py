@@ -19,14 +19,14 @@ def kl_divergence(mu, log_var, use_sum):
 def mse_ssim_loss(
     reconstructed_x, x, use_sum, ssim_module=None, mse_weight=1, ssim_weight=1
 ):
-    mse = mse_loss(reconstructed_x, x, use_sum)
+    mse = mse_weight * mse_loss(reconstructed_x, x, use_sum)
     if ssim_module:
         # ssim gives a score from 0-1 where 1 is the highest.
         # So we do 1 - ssim in order to minimize it.
-        ssim = 1 - ssim_module(reconstructed_x, x)
+        ssim = ssim_weight * (1 - ssim_module(reconstructed_x, x))
     else:
         ssim = 0
-    return (mse_weight * mse) + (ssim_weight * ssim)
+    return mse + ssim, mse, ssim
 
 
 def VAE_loss(
@@ -41,16 +41,14 @@ def VAE_loss(
     reconstruction_weight=1,
     kl_weight=1,
 ):
-    mse = mse_loss(reconstructed_x, x, use_sum)
-    if ssim_module:
-        # ssim gives a score from 0-1 where 1 is the highest.
-        # So we do 1 - ssim in order to minimize it.
-        ssim = 1 - ssim_module(reconstructed_x, x)
-    else:
-        ssim = 0
-    KL_d = kl_divergence(mu, log_var, use_sum)
-    weighted_reconstruction = (mse_weight + mse) + (ssim_weight + ssim)
-    weighted_loss = (reconstruction_weight * weighted_reconstruction) + (
-        kl_weight * KL_d
+    mse_ssim, mse, ssim = mse_ssim_loss(
+        reconstructed_x,
+        x,
+        use_sum,
+        ssim_modoule=ssim_module,
+        mse_weight=mse_weight,
+        ssim_weight=ssim_weight,
     )
+    KL_d = kl_divergence(mu, log_var, use_sum)
+    weighted_loss = (reconstruction_weight * mse_ssim) + (kl_weight * KL_d)
     return weighted_loss, (mse, ssim, KL_d)

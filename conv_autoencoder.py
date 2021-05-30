@@ -164,7 +164,7 @@ for epoch in range(epochs):
         # Run our model & get outputs
         reconstructed = model(batch)
         # Calculate reconstruction loss
-        batch_loss = loss.mse_ssim_loss(
+        batch_loss, _, _ = loss.mse_ssim_loss(
             batch,
             reconstructed,
             use_sum=False,
@@ -188,7 +188,7 @@ for epoch in range(epochs):
             # Run our model & get outputs
             reconstructed = model(batch)
             # Calculate reconstruction loss
-            batch_loss = loss.mse_ssim_loss(
+            batch_loss, _, _ = loss.mse_ssim_loss(
                 batch,
                 reconstructed,
                 use_sum=False,

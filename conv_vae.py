@@ -34,6 +34,8 @@ use_noise_images = True
 small_conv = True  # To use the 1x1 convolution layer
 use_sum = False  # Use a sum instead of a mean for our loss function
 use_ssim_loss = False
+mse_weight = 1
+ssim_weight = 1
 
 data_prefix = "data\\final\\standard"
 train_data_folder = os.path.join(data_prefix, "train")
@@ -122,7 +124,8 @@ model.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 ssim_module = None
-if use_ssim_loss:
+if use_ssim_loss and use_sum == False:
+    # Can only be used with use_sum=False due to a bug in the library
     ssim_module = pytorch_msssim.SSIM(
         data_range=1.0, win_size=11, win_sigma=1.5, K=(0.01, 0.03)
     )
@@ -165,7 +168,14 @@ for epoch in range(epochs):
 
         # Calculate reconstruction loss
         batch_loss, (batch_mse, batch_ssim, batch_kl_d) = loss.VAE_loss(
-            reconstructed, batch, mu, log_var, use_sum=use_sum, ssim_module=ssim_module
+            reconstructed,
+            batch,
+            mu,
+            log_var,
+            use_sum=use_sum,
+            ssim_module=ssim_module,
+            mse_weight=mse_weight,
+            ssim_weight=ssim_weight,
         )
 
         # Backprop
@@ -197,6 +207,8 @@ for epoch in range(epochs):
                 log_var,
                 use_sum=use_sum,
                 ssim_module=ssim_module,
+                mse_weight=mse_weight,
+                ssim_weight=ssim_weight,
             )
 
             # Add the batch's loss to the total loss for the epoch
