@@ -238,12 +238,12 @@ for epoch in range(epochs):
     # Print Metrics
     print(
         f"\nEpoch: {epoch+1}/{epochs}:\
-        \nTrain Loss = {train_loss}, \
-        Train Reconstruction Loss = {train_recon_loss}, \
-        Train KL Divergence = {train_kl_d}\
-        \nVal Loss = {val_loss}, \
-        Val Reconstruction Loss = {val_recon_loss}, \
-        Val KL Divergence = {val_kl_d}"
+        \nTrain Loss = {train_loss}\
+        \nTrain Reconstruction Loss = {train_recon_loss}\
+        \nTrain KL Divergence = {train_kl_d}\
+        \nVal Loss = {val_loss}\
+        \nVal Reconstruction Loss = {val_recon_loss}\
+        \nVal KL Divergence = {val_kl_d}"
     )
 
 ################################################################################
