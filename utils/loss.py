@@ -16,6 +16,15 @@ def kl_divergence(mu, log_var, use_sum):
         return -0.5 * torch.mean(1 + log_var - mu.pow(2) - log_var.exp())
 
 
+def kl_divergence_two_gaussians(mu1, log_var1, mu2, log_var2, use_sum):
+    term1 = log_var1 / log_var2
+    term2 = (log_var1.exp() + (mu1 - mu2).pow(2)) / log_var2.exp()
+    if use_sum:
+        kl_d = -0.5 * torch.sum(term1 - term2 + 1)
+    else:
+        kl_d = -0.5 * torch.mean(term1 - term2 + 1)
+
+
 def mse_ssim_loss(
     reconstructed_x, x, use_sum, ssim_module=None, mse_weight=1, ssim_weight=1
 ):
