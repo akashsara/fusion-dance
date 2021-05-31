@@ -272,11 +272,8 @@ class ConvolutionalVAE(nn.Module):
         return channel_sizes
 
     def forward(self, x):
-        # Encode
-        hidden_state = self.encoder(x)
+        mu, log_var = self.get_latent_variables(x)
         # Reparameterize
-        mu = self.fc_mu(hidden_state)
-        log_var = self.fc_log_var(hidden_state)
         z = self.reparameterize(mu, log_var)
         # Decode
         reconstructed = self.decoder(z)
@@ -287,6 +284,15 @@ class ConvolutionalVAE(nn.Module):
         epsilon = torch.randn_like(mu)
         z = mu + (epsilon * std)
         return z
+
+    def get_latent_variables(self, x):
+        # Encode
+        hidden_state = self.encoder(x)
+        # Get latent variables
+        mu = self.fc_mu(hidden_state)
+        log_var = self.fc_log_var(hidden_state)
+        return mu, log_var
+
 
 
 def get_freezable_layers(model):
