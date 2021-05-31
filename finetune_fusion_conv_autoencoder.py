@@ -192,8 +192,6 @@ optimizer = torch.optim.Adam(model.parameters(), lr=fusion_learning_rate)
 
 ssim_module = None
 if use_ssim_loss:
-    # Can only be used with use_sum=False due to a bug in the library
-    # Autoencoder does that anyway so no issues
     ssim_module = pytorch_msssim.SSIM(
         data_range=1.0, win_size=11, win_sigma=1.5, K=(0.01, 0.03)
     )
