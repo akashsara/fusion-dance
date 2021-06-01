@@ -36,6 +36,8 @@ use_sum = False  # Use a sum instead of a mean for our loss function
 use_ssim_loss = False
 mse_weight = 1
 ssim_weight = 1
+reconstruction_weight = 1
+kl_d_weight = 1 # equivalent to beta in a Beta-VAE
 
 data_prefix = "data\\final\\standard"
 train_data_folder = os.path.join(data_prefix, "train")
@@ -178,6 +180,8 @@ for epoch in range(epochs):
             ssim_module=ssim_module,
             mse_weight=mse_weight,
             ssim_weight=ssim_weight,
+            reconstruction_weight=reconstruction_weight,
+            kl_weight=kl_d_weight
         )
 
         # Backprop
@@ -211,6 +215,8 @@ for epoch in range(epochs):
                 ssim_module=ssim_module,
                 mse_weight=mse_weight,
                 ssim_weight=ssim_weight,
+                reconstruction_weight=reconstruction_weight,
+                kl_weight=kl_d_weight
             )
 
             # Add the batch's loss to the total loss for the epoch
