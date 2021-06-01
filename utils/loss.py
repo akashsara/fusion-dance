@@ -4,16 +4,24 @@ import torch.nn as nn
 
 def mse_loss(reconstructed_x, x, use_sum):
     if use_sum:
-        return nn.functional.mse_loss(reconstructed_x, x, reduction="sum")
+        # Returns Sum of Sum Squared Error
+        # return nn.functional.mse_loss(reconstructed_x, x, reduction="sum")
+        # Returns Sum of Mean Squared Error
+        mse = nn.functional.mse_loss(reconstructed_x, x, reduction="none")
+        return mse.mean(dim=1).sum()
     else:
+        # Returns batch mean
         return nn.functional.mse_loss(reconstructed_x, x, reduction="mean")
 
 
 def kl_divergence(mu, log_var, use_sum):
     if use_sum:
+        # Returns sum of batch
         return -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
     else:
-        return -0.5 * torch.mean(1 + log_var - mu.pow(2) - log_var.exp())
+        # Returns batch mean
+        kl_d = 1 + log_var - mu.pow(2) - log_var.exp()
+        return -0.5 * kl_d.sum(dim=1).mean()
 
 
 def kl_divergence_two_gaussians(mu1, log_var1, mu2, log_var2, use_sum):
