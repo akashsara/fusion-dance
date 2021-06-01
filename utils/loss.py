@@ -23,6 +23,7 @@ def kl_divergence_two_gaussians(mu1, log_var1, mu2, log_var2, use_sum):
         kl_d = -0.5 * torch.sum(term1 - term2 + 1)
     else:
         kl_d = -0.5 * torch.mean(term1 - term2 + 1)
+    return kl_d
 
 
 def mse_ssim_loss(
@@ -34,7 +35,7 @@ def mse_ssim_loss(
         # So we do 1 - ssim in order to minimize it.
         ssim = ssim_weight * (1 - ssim_module(reconstructed_x, x))
     else:
-        ssim = 0
+        ssim = torch.tensor(0)
     return mse + ssim, mse, ssim
 
 

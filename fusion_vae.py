@@ -34,7 +34,7 @@ experiment_name = f"test_model_v1"
 num_layers = 4
 max_filters = 512
 image_size = 64
-latent_dim = 2048
+latent_dim = 256
 use_noise_images = True
 small_conv = True  # To use the 1x1 convolution layer
 use_sum = False  # Use a sum instead of a mean for our loss function
@@ -42,7 +42,7 @@ use_ssim_loss = False
 mse_weight = 1
 ssim_weight = 1
 reconstruction_weight = 1
-kl_d_weight = 1
+kl_d_weight = 1 # equivalent to beta in a Beta-VAE
 
 # Fusion Parameters
 fusion_mode = "both"  # encoder, decoder, both
@@ -281,6 +281,8 @@ for epoch in range(epochs):
             ssim_module=ssim_module,
             mse_weight=mse_weight,
             ssim_weight=ssim_weight,
+            reconstruction_weight=reconstruction_weight,
+            kl_weight=kl_d_weight
         )
         # Backprop
         batch_loss.backward()
@@ -360,6 +362,8 @@ for epoch in range(epochs):
                     ssim_module=ssim_module,
                     mse_weight=mse_weight,
                     ssim_weight=ssim_weight,
+                    reconstruction_weight=reconstruction_weight,
+                    kl_weight=kl_d_weight
                 )
                 # Backprop
                 batch_loss.backward()
@@ -394,6 +398,8 @@ for epoch in range(epochs):
                 ssim_module=ssim_module,
                 mse_weight=mse_weight,
                 ssim_weight=ssim_weight,
+                reconstruction_weight=reconstruction_weight,
+                kl_weight=kl_d_weight
             )
 
             # Add the batch's loss to the total loss for the epoch
@@ -459,6 +465,8 @@ for epoch in range(epochs):
                     ssim_module=ssim_module,
                     mse_weight=mse_weight,
                     ssim_weight=ssim_weight,
+                    reconstruction_weight=reconstruction_weight,
+                    kl_weight=kl_d_weight
                 )
                 # Add the batch's loss to the total loss for the epoch
                 val_fusion_loss += batch_loss.item()
@@ -681,7 +689,7 @@ test_sample = data.get_samples_from_data(test_data, 16)
 fusion_test_sample = data.get_samples_from_data(test_fusions, 4, fusion=True)
 
 with torch.no_grad():
-    reconstructed, _, _ = model(test_sample.to(device)).detach().cpu()
+    reconstructed, _, _ = model(test_sample.to(device))
 
     # Get reconstruction of our sample
     sample_base, sample_fusee, _ = (
@@ -704,7 +712,10 @@ with torch.no_grad():
     sample_reconstruction = torch.stack(
         (sample_base, sample_fusee, sample_fusion), dim=1
     ).flatten(end_dim=1)
+
+    # Move to CPU
     sample_reconstruction = sample_reconstruction.detach().cpu()
+    reconstructed = reconstructed.detach().cpu()
 
 # Plot A Set of Test Images
 fig, axis = graphics.make_grid(("Test Sample", test_sample), 4, 4)
