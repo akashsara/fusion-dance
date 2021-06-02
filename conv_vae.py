@@ -171,7 +171,7 @@ for epoch in range(epochs):
         reconstructed, mu, log_var = model(batch)
 
         # Calculate reconstruction loss
-        batch_loss, (batch_mse, batch_ssim, batch_kl_d) = loss.VAE_loss(
+        batch_loss, loss_dict = loss.VAE_loss(
             reconstructed,
             batch,
             mu,
@@ -192,8 +192,8 @@ for epoch in range(epochs):
 
         # Add the batch's loss to the total loss for the epoch
         train_loss += batch_loss.item()
-        train_recon_loss += batch_mse.item() + batch_ssim.item()
-        train_kl_d += batch_kl_d.item()
+        train_recon_loss += loss_dict["MSE"] + loss_dict["SSIM"]
+        train_kl_d += loss_dict["KL Divergence"]
 
     # Validation Loop
     with torch.no_grad():
@@ -206,7 +206,7 @@ for epoch in range(epochs):
             reconstructed, mu, log_var = model(batch)
 
             # Calculate reconstruction loss
-            batch_loss, (batch_mse, batch_ssim, batch_kl_d) = loss.VAE_loss(
+            batch_loss, loss_dict = loss.VAE_loss(
                 reconstructed,
                 batch,
                 mu,
@@ -221,8 +221,8 @@ for epoch in range(epochs):
 
             # Add the batch's loss to the total loss for the epoch
             val_loss += batch_loss.item()
-            val_recon_loss += batch_mse.item() + batch_ssim.item()
-            val_kl_d += batch_kl_d.item()
+            val_recon_loss += loss_dict["MSE"] + loss_dict["SSIM"]
+            val_kl_d += loss_dict["KL Divergence"]
 
         # Get reconstruction of our sample
         epoch_sample, _, _ = model(sample.to(device))

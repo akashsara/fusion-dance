@@ -23,7 +23,7 @@ def kl_divergence_two_gaussians(mu1, log_var1, mu2, log_var2, use_sum):
         kl_d = -0.5 * torch.sum(term1 - term2 + 1)
     else:
         kl_d = -0.5 * torch.mean(term1 - term2 + 1)
-    return kl_d
+    return kl_d, {"KL Divergence": kl_d.item()}
 
 
 def mse_ssim_loss(
@@ -36,7 +36,7 @@ def mse_ssim_loss(
         ssim = ssim_weight * (1 - ssim_module(reconstructed_x, x))
     else:
         ssim = torch.tensor(0)
-    return mse + ssim, mse, ssim
+    return mse + ssim, {"MSE": mse.item(), "SSIM": ssim.item()}
 
 
 def VAE_loss(
@@ -61,4 +61,4 @@ def VAE_loss(
     )
     KL_d = kl_divergence(mu, log_var, use_sum)
     weighted_loss = (reconstruction_weight * mse_ssim) + (kl_weight * KL_d)
-    return weighted_loss, (mse, ssim, KL_d)
+    return weighted_loss, {"MSE": mse, "SSIM": ssim, "KL Divergence": KL_d.item()}

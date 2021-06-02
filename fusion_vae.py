@@ -272,7 +272,7 @@ for epoch in range(epochs):
         # Run our model & get outputs
         reconstructed, mu, log_var = model(batch)
         # Calculate reconstruction loss
-        batch_loss, (batch_mse, batch_ssim, batch_kl_d) = loss.VAE_loss(
+        batch_loss, loss_dict = loss.VAE_loss(
             reconstructed,
             batch,
             mu,
@@ -290,8 +290,8 @@ for epoch in range(epochs):
         optimizer.step()
         # Add the batch's loss to the total loss for the epoch
         train_loss += batch_loss.item()
-        train_recon_loss += batch_mse.item() + batch_ssim.item()
-        train_kl_d += batch_kl_d.item()
+        train_recon_loss += loss_dict["MSE"] + loss_dict["SSIM"]
+        train_kl_d += loss_dict["KL Divergence"]
 
     if freeze_conv_for_fusions:
         models.toggle_layer_freezing(freezable_layers, trainable=False)
@@ -327,7 +327,7 @@ for epoch in range(epochs):
                 # Calculate reconstruction loss:
                 # Fusion Embedding vs Midpoint Embedding
                 # Can't use SSIM here
-                reconstruction_loss, _, _ = loss.mse_ssim_loss(
+                reconstruction_loss, _ = loss.mse_ssim_loss(
                     midpoint_embedding,
                     fusion_embedding,
                     use_sum=use_sum,
@@ -336,7 +336,7 @@ for epoch in range(epochs):
                     ssim_weight=ssim_weight,
                 )
                 reconstruction_loss *= reconstruction_weight
-                kl_d = loss.kl_divergence_two_gaussians(
+                kl_d, _ = loss.kl_divergence_two_gaussians(
                     mu, log_var, fusion_mu, fusion_log_var, use_sum
                 )
                 kl_d *= kl_d_weight
@@ -353,7 +353,7 @@ for epoch in range(epochs):
                 fusion_output = model.decoder(midpoint_embedding)
                 # Calculate reconstruction loss:
                 # Midpoint Embedding Output vs Original Fusion
-                batch_loss, (batch_mse, batch_ssim, batch_kl_d) = loss.VAE_loss(
+                batch_loss, loss_dict = loss.VAE_loss(
                     fusion_output,
                     fusion,
                     mu,
@@ -369,8 +369,8 @@ for epoch in range(epochs):
                 batch_loss.backward()
                 # Add the batch's loss to the total loss for the epoch
                 train_fusion_loss += batch_loss.item()
-                train_fusion_recon_loss += batch_mse.item() + batch_ssim.item()
-                train_fusion_kl_d += batch_kl_d.item()
+                train_fusion_recon_loss += loss_dict["MSE"] + loss_dict["SSIM"]
+                train_fusion_kl_d += loss_dict["KL Divergence"]
 
             # Update our optimizer parameters
             # We call it out here instead of inside the if because
@@ -389,7 +389,7 @@ for epoch in range(epochs):
             # Run our model & get outputs
             reconstructed, mu, log_var = model(batch)
             # Calculate reconstruction loss
-            batch_loss, (batch_mse, batch_ssim, batch_kl_d) = loss.VAE_loss(
+            batch_loss, loss_dict = loss.VAE_loss(
                 reconstructed,
                 batch,
                 mu,
@@ -404,8 +404,8 @@ for epoch in range(epochs):
 
             # Add the batch's loss to the total loss for the epoch
             val_loss += batch_loss.item()
-            val_recon_loss += batch_mse.item() + batch_ssim.item()
-            val_kl_d += batch_kl_d.item()
+            val_recon_loss += loss_dict["MSE"] + loss_dict["SSIM"]
+            val_kl_d += loss_dict["KL Divergence"]
 
     # Validation Loop - Fusions
     with torch.no_grad():
@@ -431,7 +431,7 @@ for epoch in range(epochs):
                 # Calculate reconstruction loss:
                 # Fusion Embedding vs Midpoint Embedding
                 # Can't use SSIM here
-                reconstruction_loss, _, _ = loss.mse_ssim_loss(
+                reconstruction_loss, _ = loss.mse_ssim_loss(
                     midpoint_embedding,
                     fusion_embedding,
                     use_sum=use_sum,
@@ -440,7 +440,7 @@ for epoch in range(epochs):
                     ssim_weight=ssim_weight,
                 )
                 reconstruction_loss *= reconstruction_weight
-                kl_d = loss.kl_divergence_two_gaussians(
+                kl_d, _ = loss.kl_divergence_two_gaussians(
                     mu, log_var, fusion_mu, fusion_log_var, use_sum
                 )
                 kl_d *= kl_d_weight
@@ -456,7 +456,7 @@ for epoch in range(epochs):
                 fusion_output = model.decoder(midpoint_embedding)
                 # Calculate reconstruction loss:
                 # Midpoint Embedding Output vs Original Fusion
-                batch_loss, (batch_mse, batch_ssim, batch_kl_d) = loss.VAE_loss(
+                batch_loss, loss_dict = loss.VAE_loss(
                     fusion_output,
                     fusion,
                     mu,
@@ -470,8 +470,8 @@ for epoch in range(epochs):
                 )
                 # Add the batch's loss to the total loss for the epoch
                 val_fusion_loss += batch_loss.item()
-                val_fusion_recon_loss += batch_mse.item() + batch_ssim.item()
-                val_fusion_kl_d += batch_kl_d.item()
+                val_fusion_recon_loss += loss_dict["MSE"] + loss_dict["SSIM"]
+                val_fusion_kl_d += loss_dict["KL Divergence"]
 
     # Get Sample Outputs for the animation
     with torch.no_grad():
