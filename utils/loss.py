@@ -51,7 +51,7 @@ def VAE_loss(
     reconstruction_weight=1,
     kl_weight=1,
 ):
-    mse_ssim, mse, ssim = mse_ssim_loss(
+    mse_ssim, loss_dict = mse_ssim_loss(
         reconstructed_x,
         x,
         use_sum,
@@ -61,4 +61,8 @@ def VAE_loss(
     )
     KL_d = kl_divergence(mu, log_var, use_sum)
     weighted_loss = (reconstruction_weight * mse_ssim) + (kl_weight * KL_d)
-    return weighted_loss, {"MSE": mse, "SSIM": ssim, "KL Divergence": KL_d.item()}
+    return weighted_loss, {
+        "MSE": loss_dict["MSE"],
+        "SSIM": loss_dict["SSIM"],
+        "KL Divergence": KL_d.item(),
+    }
