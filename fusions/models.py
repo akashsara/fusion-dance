@@ -1,10 +1,8 @@
 import torch
 import torch.nn as nn
-from torchvision import transforms
 import numpy as np
 
 
-# Ref: https://github.com/sksq96/pytorch-vae/blob/master/vae-cnn.ipynb
 class ConvolutionalAE(nn.Module):
     def __init__(
         self,
@@ -144,6 +142,7 @@ class ConvolutionalAE(nn.Module):
         return reconstructed
 
 
+# Ref: https://github.com/sksq96/pytorch-vae/blob/master/vae-cnn.ipynb
 class ConvolutionalVAE(nn.Module):
     def __init__(
         self,
@@ -273,11 +272,8 @@ class ConvolutionalVAE(nn.Module):
         return channel_sizes
 
     def forward(self, x):
-        # Encode
-        hidden_state = self.encoder(x)
+        mu, log_var = self.get_latent_variables(x)
         # Reparameterize
-        mu = self.fc_mu(hidden_state)
-        log_var = self.fc_log_var(hidden_state)
         z = self.reparameterize(mu, log_var)
         # Decode
         reconstructed = self.decoder(z)
@@ -288,3 +284,35 @@ class ConvolutionalVAE(nn.Module):
         epsilon = torch.randn_like(mu)
         z = mu + (epsilon * std)
         return z
+
+    def get_latent_variables(self, x):
+        # Encode
+        hidden_state = self.encoder(x)
+        # Get latent variables
+        mu = self.fc_mu(hidden_state)
+        log_var = self.fc_log_var(hidden_state)
+        return mu, log_var
+
+
+
+def get_freezable_layers(model):
+    # Freeze Conv Layers
+    freezable_layers = []
+    for layer in model.encoder:
+        if "Linear" not in str(layer):
+            freezable_layers.append(layer)
+    for layer in model.decoder:
+        if "Linear" not in str(layer):
+            freezable_layers.append(layer)
+    return freezable_layers
+
+
+def toggle_layer_freezing(layers, trainable):
+    for layer in layers:
+        layer.requires_grad_(trainable)
+
+
+def set_learning_rate(optimizer, learning_rate):
+    for group in optimizer.param_groups:
+        group["lr"] = learning_rate
+    return optimizer
