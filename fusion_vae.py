@@ -43,6 +43,8 @@ mse_weight = 1
 ssim_weight = 1
 reconstruction_weight = 1
 kl_d_weight = 1 # equivalent to beta in a Beta-VAE
+fusion_reconstruction_weight = 1
+fusion_kl_d_weight = 1 # equivalent to beta in a Beta-VAE
 
 # Fusion Parameters
 fusion_mode = "both"  # encoder, decoder, both
@@ -335,12 +337,12 @@ for epoch in range(epochs):
                     mse_weight=mse_weight,
                     ssim_weight=ssim_weight,
                 )
-                reconstruction_loss *= reconstruction_weight
                 kl_d, _ = loss.kl_divergence_two_gaussians(
                     mu, log_var, fusion_mu, fusion_log_var, use_sum
                 )
-                kl_d *= kl_d_weight
                 # Backprop
+                reconstruction_loss *= fusion_reconstruction_weight
+                kl_d *= fusion_kl_d_weight
                 batch_loss = reconstruction_loss + kl_d
                 batch_loss.backward()
                 # Add the batch's loss to the total loss for the epoch
@@ -439,11 +441,11 @@ for epoch in range(epochs):
                     mse_weight=mse_weight,
                     ssim_weight=ssim_weight,
                 )
-                reconstruction_loss *= reconstruction_weight
                 kl_d, _ = loss.kl_divergence_two_gaussians(
                     mu, log_var, fusion_mu, fusion_log_var, use_sum
                 )
-                kl_d *= kl_d_weight
+                reconstruction_loss *= fusion_reconstruction_weight
+                kl_d *= fusion_kl_d_weight
                 # Backprop
                 batch_loss = reconstruction_loss + kl_d
                 # Add the batch's loss to the total loss for the epoch
