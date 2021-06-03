@@ -62,7 +62,7 @@ output_dir = sys.argv[2]
 num_images = int(sys.argv[3])
 model_dirs = sys.argv[4:]
 
-images_to_load = pick_images(model_dirs[0], num_images)
+images_to_load = pick_images(base_dir, num_images)
 
 caption = "base"
 images = get_images(base_dir, images_to_load)
