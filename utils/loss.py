@@ -10,10 +10,11 @@ def mse_loss(reconstructed_x, x, use_sum):
 
 
 def kl_divergence(mu, log_var, use_sum):
+    inner_element = 1 + log_var - mu.pow(2) - log_var.exp()
     if use_sum:
-        return -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
+        return -0.5 * torch.sum(inner_element)
     else:
-        return -0.5 * torch.mean(1 + log_var - mu.pow(2) - log_var.exp())
+        return -0.5 * torch.sum(inner_element, dim=1).mean()
 
 
 def kl_divergence_two_gaussians(mu1, log_var1, mu2, log_var2, use_sum):
