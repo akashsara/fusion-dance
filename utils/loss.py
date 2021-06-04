@@ -10,6 +10,7 @@ def mse_loss(reconstructed_x, x, use_sum):
 
 
 def kl_divergence(mu, log_var, use_sum):
+    # Assumes a standard normal distribution for the 2nd gaussian
     inner_element = 1 + log_var - mu.pow(2) - log_var.exp()
     if use_sum:
         return -0.5 * torch.sum(inner_element)
@@ -18,12 +19,15 @@ def kl_divergence(mu, log_var, use_sum):
 
 
 def kl_divergence_two_gaussians(mu1, log_var1, mu2, log_var2, use_sum):
-    term1 = log_var1 / log_var2
+    # https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians
+    # Verify by setting mu2=torch.zeros((shape)), log_var2=torch.zeros((shape))
+    # We use 0s for logvar since log 1 = 0.
+    term1 = log_var1 - log_var2
     term2 = (log_var1.exp() + (mu1 - mu2).pow(2)) / log_var2.exp()
     if use_sum:
         kl_d = -0.5 * torch.sum(term1 - term2 + 1)
     else:
-        kl_d = -0.5 * torch.mean(term1 - term2 + 1)
+        kl_d = -0.5 * torch.sum(term1 - term2 + 1, dim=1).mean()
     return kl_d, {"KL Divergence": kl_d.item()}
 
 
