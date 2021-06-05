@@ -341,9 +341,13 @@ for epoch in range(epochs):
                     mu, log_var, fusion_mu, fusion_log_var, use_sum
                 )
                 # Backprop
-                reconstruction_loss *= fusion_reconstruction_weight
-                kl_d *= fusion_kl_d_weight
-                batch_loss = reconstruction_loss + kl_d
+                batch_loss = 0
+                if fusion_reconstruction_weight > 0:
+                    reconstruction_loss *= fusion_reconstruction_weight
+                    batch_loss += reconstruction_loss
+                if fusion_kl_d_weight > 0:
+                    kl_d *= fusion_kl_d_weight
+                    batch_loss += kl_d
                 batch_loss.backward()
                 # Add the batch's loss to the total loss for the epoch
                 train_fusion_loss += batch_loss.item()
@@ -444,9 +448,14 @@ for epoch in range(epochs):
                 kl_d, _ = loss.kl_divergence_two_gaussians(
                     mu, log_var, fusion_mu, fusion_log_var, use_sum
                 )
-                reconstruction_loss *= fusion_reconstruction_weight
-                kl_d *= fusion_kl_d_weight
                 # Backprop
+                batch_loss = 0
+                if fusion_reconstruction_weight > 0:
+                    reconstruction_loss *= fusion_reconstruction_weight
+                    batch_loss += reconstruction_loss
+                if fusion_kl_d_weight > 0:
+                    kl_d *= fusion_kl_d_weight
+                    batch_loss += kl_d
                 batch_loss = reconstruction_loss + kl_d
                 # Add the batch's loss to the total loss for the epoch
                 train_fusion_loss += batch_loss.item()
