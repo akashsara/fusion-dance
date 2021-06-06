@@ -288,6 +288,8 @@ for epoch in range(epochs):
         )
         # Backprop
         batch_loss.backward()
+        # Clip Gradient
+        nn.utils.clip_grad_norm_(model.parameters(), max_norm=3.0)
         # Update our optimizer parameters
         optimizer.step()
         # Add the batch's loss to the total loss for the epoch
@@ -382,6 +384,8 @@ for epoch in range(epochs):
                 train_fusion_recon_loss += loss_dict["MSE"] + loss_dict["SSIM"]
                 train_fusion_kl_d += loss_dict["KL Divergence"]
 
+            # Clip Gradient
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=3.0)
             # Update our optimizer parameters
             # We call it out here instead of inside the if because
             # the gradients are accumulated in case both conditions are true
