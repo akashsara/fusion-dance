@@ -329,30 +329,34 @@ for epoch in range(epochs):
                 # Calculate reconstruction loss:
                 # Fusion Embedding vs Midpoint Embedding
                 # Can't use SSIM here
-                reconstruction_loss, _ = loss.mse_ssim_loss(
-                    midpoint_embedding,
-                    fusion_embedding,
-                    use_sum=use_sum,
-                    ssim_module=None,
-                    mse_weight=mse_weight,
-                    ssim_weight=ssim_weight,
-                )
-                kl_d, _ = loss.kl_divergence_two_gaussians(
-                    mu, log_var, fusion_mu, fusion_log_var, use_sum
-                )
-                # Backprop
                 batch_loss = 0
+                batch_recon_loss = 0
+                batch_kl_d = 0
                 if fusion_reconstruction_weight > 0:
+                    reconstruction_loss, loss_dict = loss.mse_ssim_loss(
+                        midpoint_embedding,
+                        fusion_embedding,
+                        use_sum=use_sum,
+                        ssim_module=None,
+                        mse_weight=mse_weight,
+                        ssim_weight=ssim_weight,
+                    )
                     reconstruction_loss *= fusion_reconstruction_weight
                     batch_loss += reconstruction_loss
+                    batch_recon_loss = loss_dict["MSE"] + loss_dict["SSIM"]
                 if fusion_kl_d_weight > 0:
+                    kl_d, loss_dict = loss.kl_divergence_two_gaussians(
+                        mu, log_var, fusion_mu, fusion_log_var, use_sum
+                    )
                     kl_d *= fusion_kl_d_weight
                     batch_loss += kl_d
+                    batch_kl_d = loss_dict["KL Divergence"]
+                # Backprop
                 batch_loss.backward()
                 # Add the batch's loss to the total loss for the epoch
                 train_fusion_loss += batch_loss.item()
-                train_fusion_recon_loss += reconstruction_loss.item()
-                train_fusion_kl_d += kl_d.item()
+                train_fusion_recon_loss += batch_recon_loss
+                train_fusion_kl_d += batch_kl_d
 
             if fusion_mode == "decoder" or fusion_mode == "both":
                 # Run our model & get outputs
@@ -437,30 +441,32 @@ for epoch in range(epochs):
                 # Calculate reconstruction loss:
                 # Fusion Embedding vs Midpoint Embedding
                 # Can't use SSIM here
-                reconstruction_loss, _ = loss.mse_ssim_loss(
-                    midpoint_embedding,
-                    fusion_embedding,
-                    use_sum=use_sum,
-                    ssim_module=None,
-                    mse_weight=mse_weight,
-                    ssim_weight=ssim_weight,
-                )
-                kl_d, _ = loss.kl_divergence_two_gaussians(
-                    mu, log_var, fusion_mu, fusion_log_var, use_sum
-                )
-                # Backprop
                 batch_loss = 0
+                batch_recon_loss = 0
+                batch_kl_d = 0
                 if fusion_reconstruction_weight > 0:
+                    reconstruction_loss, loss_dict = loss.mse_ssim_loss(
+                        midpoint_embedding,
+                        fusion_embedding,
+                        use_sum=use_sum,
+                        ssim_module=None,
+                        mse_weight=mse_weight,
+                        ssim_weight=ssim_weight,
+                    )
                     reconstruction_loss *= fusion_reconstruction_weight
                     batch_loss += reconstruction_loss
+                    batch_recon_loss = loss_dict["MSE"] + loss_dict["SSIM"]
                 if fusion_kl_d_weight > 0:
+                    kl_d, loss_dict = loss.kl_divergence_two_gaussians(
+                        mu, log_var, fusion_mu, fusion_log_var, use_sum
+                    )
                     kl_d *= fusion_kl_d_weight
                     batch_loss += kl_d
-                batch_loss = reconstruction_loss + kl_d
+                    batch_kl_d = loss_dict["KL Divergence"]
                 # Add the batch's loss to the total loss for the epoch
                 train_fusion_loss += batch_loss.item()
-                train_fusion_recon_loss += reconstruction_loss.item()
-                train_fusion_kl_d += kl_d.item()
+                train_fusion_recon_loss += batch_recon_loss
+                train_fusion_kl_d += batch_kl_d
 
             if fusion_mode == "decoder" or fusion_mode == "both":
                 # Run our model & get outputs
