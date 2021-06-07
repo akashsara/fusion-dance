@@ -37,7 +37,8 @@ use_ssim_loss = False
 mse_weight = 1
 ssim_weight = 1
 reconstruction_weight = 1
-kl_d_weight = 1 # equivalent to beta in a Beta-VAE
+kl_d_weight = 1  # equivalent to beta in a Beta-VAE
+num_mse = 0  # Each increment halves the image sizes and takes the MSE
 
 data_prefix = "data\\final\\standard"
 train_data_folder = os.path.join(data_prefix, "train")
@@ -181,8 +182,25 @@ for epoch in range(epochs):
             mse_weight=mse_weight,
             ssim_weight=ssim_weight,
             reconstruction_weight=reconstruction_weight,
-            kl_weight=kl_d_weight
+            kl_weight=kl_d_weight,
         )
+
+        # For multiple MSE
+        # For every MSE, we halve the image size
+        # And take the MSE between the resulting images
+        if num_mse > 0:
+            for i in range(num_mse):
+                new_size = image_size // pow(2, i + 1)
+                with torch.no_grad():
+                    resized_batch = nn.functional.interpolate(
+                        batch, size=new_size, mode="bilinear"
+                    )
+                resized_output = nn.functional.interpolate(
+                    reconstructed, size=new_size, mode="bilinear"
+                )
+                mse = loss.mse_loss(resized_output, resized_batch, use_sum)
+                batch_loss += mse
+                loss_dict["MSE"] += mse.item()
 
         # Backprop
         batch_loss.backward()
@@ -216,7 +234,7 @@ for epoch in range(epochs):
                 mse_weight=mse_weight,
                 ssim_weight=ssim_weight,
                 reconstruction_weight=reconstruction_weight,
-                kl_weight=kl_d_weight
+                kl_weight=kl_d_weight,
             )
 
             # Add the batch's loss to the total loss for the epoch
