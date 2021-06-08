@@ -42,9 +42,9 @@ use_ssim_loss = False
 mse_weight = 1
 ssim_weight = 1
 reconstruction_weight = 1
-kl_d_weight = 1 # equivalent to beta in a Beta-VAE
+kl_d_weight = 1  # equivalent to beta in a Beta-VAE
 fusion_reconstruction_weight = 1
-fusion_kl_d_weight = 1 # equivalent to beta in a Beta-VAE
+fusion_kl_d_weight = 1  # equivalent to beta in a Beta-VAE
 
 # Fusion Parameters
 fusion_mode = "both"  # encoder, decoder, both
@@ -284,12 +284,10 @@ for epoch in range(epochs):
             mse_weight=mse_weight,
             ssim_weight=ssim_weight,
             reconstruction_weight=reconstruction_weight,
-            kl_weight=kl_d_weight
+            kl_weight=kl_d_weight,
         )
         # Backprop
         batch_loss.backward()
-        # Clip Gradient
-        nn.utils.clip_grad_norm_(model.parameters(), max_norm=3.0)
         # Update our optimizer parameters
         optimizer.step()
         # Add the batch's loss to the total loss for the epoch
@@ -331,51 +329,17 @@ for epoch in range(epochs):
                 # Calculate reconstruction loss:
                 # Fusion Embedding vs Midpoint Embedding
                 # Can't use SSIM here
-                batch_loss = 0
-                batch_recon_loss = 0
-                batch_kl_d = 0
-                if fusion_reconstruction_weight > 0:
-                    reconstruction_loss, loss_dict = loss.mse_ssim_loss(
-                        midpoint_embedding,
-                        fusion_embedding,
-                        use_sum=use_sum,
-                        ssim_module=None,
-                        mse_weight=mse_weight,
-                        ssim_weight=ssim_weight,
-                    )
-                    reconstruction_loss *= fusion_reconstruction_weight
-                    batch_loss += reconstruction_loss
-                    batch_recon_loss = loss_dict["MSE"] + loss_dict["SSIM"]
-                if fusion_kl_d_weight > 0:
-                    kl_d, loss_dict = loss.kl_divergence_two_gaussians(
-                        mu, log_var, fusion_mu, fusion_log_var, use_sum
-                    )
-                    kl_d *= fusion_kl_d_weight
-                    batch_loss += kl_d
-                    batch_kl_d = loss_dict["KL Divergence"]
-                # Backprop
-                batch_loss.backward()
-                # Add the batch's loss to the total loss for the epoch
-                train_fusion_loss += batch_loss.item()
-                train_fusion_recon_loss += batch_recon_loss
-                train_fusion_kl_d += batch_kl_d
-
-            if fusion_mode == "decoder" or fusion_mode == "both":
-                # Run our model & get outputs
-                fusion_output = model.decoder(midpoint_embedding)
-                # Calculate reconstruction loss:
-                # Midpoint Embedding Output vs Original Fusion
                 batch_loss, loss_dict = loss.VAE_loss(
-                    fusion_output,
-                    fusion,
-                    mu,
-                    log_var,
+                    fusion_embedding,
+                    midpoint_embedding,
+                    fusion_mu,
+                    fusion_log_var,
                     use_sum=use_sum,
-                    ssim_module=ssim_module,
+                    ssim_module=None,
                     mse_weight=mse_weight,
                     ssim_weight=ssim_weight,
-                    reconstruction_weight=reconstruction_weight,
-                    kl_weight=kl_d_weight
+                    reconstruction_weight=fusion_reconstruction_weight,
+                    kl_weight=fusion_kl_d_weight,
                 )
                 # Backprop
                 batch_loss.backward()
@@ -384,8 +348,25 @@ for epoch in range(epochs):
                 train_fusion_recon_loss += loss_dict["MSE"] + loss_dict["SSIM"]
                 train_fusion_kl_d += loss_dict["KL Divergence"]
 
-            # Clip Gradient
-            nn.utils.clip_grad_norm_(model.parameters(), max_norm=3.0)
+            if fusion_mode == "decoder" or fusion_mode == "both":
+                # Run our model & get outputs
+                fusion_output = model.decoder(midpoint_embedding)
+                # Calculate reconstruction loss:
+                # Midpoint Embedding Output vs Original Fusion
+                batch_loss, loss_dict = loss.mse_ssim_loss(
+                    fusion_output,
+                    fusion,
+                    use_sum=use_sum,
+                    ssim_module=ssim_module,
+                    mse_weight=mse_weight,
+                    ssim_weight=ssim_weight,
+                )
+                # Backprop
+                batch_loss.backward()
+                # Add the batch's loss to the total loss for the epoch
+                train_fusion_loss += batch_loss.item()
+                train_fusion_recon_loss += loss_dict["MSE"] + loss_dict["SSIM"]
+
             # Update our optimizer parameters
             # We call it out here instead of inside the if because
             # the gradients are accumulated in case both conditions are true
@@ -413,7 +394,7 @@ for epoch in range(epochs):
                 mse_weight=mse_weight,
                 ssim_weight=ssim_weight,
                 reconstruction_weight=reconstruction_weight,
-                kl_weight=kl_d_weight
+                kl_weight=kl_d_weight,
             )
 
             # Add the batch's loss to the total loss for the epoch
@@ -445,54 +426,39 @@ for epoch in range(epochs):
                 # Calculate reconstruction loss:
                 # Fusion Embedding vs Midpoint Embedding
                 # Can't use SSIM here
-                batch_loss = 0
-                batch_recon_loss = 0
-                batch_kl_d = 0
-                if fusion_reconstruction_weight > 0:
-                    reconstruction_loss, loss_dict = loss.mse_ssim_loss(
-                        midpoint_embedding,
-                        fusion_embedding,
-                        use_sum=use_sum,
-                        ssim_module=None,
-                        mse_weight=mse_weight,
-                        ssim_weight=ssim_weight,
-                    )
-                    reconstruction_loss *= fusion_reconstruction_weight
-                    batch_loss += reconstruction_loss
-                    batch_recon_loss = loss_dict["MSE"] + loss_dict["SSIM"]
-                if fusion_kl_d_weight > 0:
-                    kl_d, loss_dict = loss.kl_divergence_two_gaussians(
-                        mu, log_var, fusion_mu, fusion_log_var, use_sum
-                    )
-                    kl_d *= fusion_kl_d_weight
-                    batch_loss += kl_d
-                    batch_kl_d = loss_dict["KL Divergence"]
+                batch_loss, loss_dict = loss.VAE_loss(
+                    fusion_embedding,
+                    midpoint_embedding,
+                    fusion_mu,
+                    fusion_log_var,
+                    use_sum=use_sum,
+                    ssim_module=None,
+                    mse_weight=mse_weight,
+                    ssim_weight=ssim_weight,
+                    reconstruction_weight=fusion_reconstruction_weight,
+                    kl_weight=fusion_kl_d_weight,
+                )
                 # Add the batch's loss to the total loss for the epoch
-                train_fusion_loss += batch_loss.item()
-                train_fusion_recon_loss += batch_recon_loss
-                train_fusion_kl_d += batch_kl_d
+                val_fusion_loss += batch_loss.item()
+                val_fusion_recon_loss += loss_dict["MSE"] + loss_dict["SSIM"]
+                val_fusion_kl_d += loss_dict["KL Divergence"]
 
             if fusion_mode == "decoder" or fusion_mode == "both":
                 # Run our model & get outputs
                 fusion_output = model.decoder(midpoint_embedding)
                 # Calculate reconstruction loss:
                 # Midpoint Embedding Output vs Original Fusion
-                batch_loss, loss_dict = loss.VAE_loss(
+                batch_loss, loss_dict = loss.mse_ssim_loss(
                     fusion_output,
                     fusion,
-                    mu,
-                    log_var,
                     use_sum=use_sum,
                     ssim_module=ssim_module,
                     mse_weight=mse_weight,
                     ssim_weight=ssim_weight,
-                    reconstruction_weight=reconstruction_weight,
-                    kl_weight=kl_d_weight
                 )
                 # Add the batch's loss to the total loss for the epoch
                 val_fusion_loss += batch_loss.item()
                 val_fusion_recon_loss += loss_dict["MSE"] + loss_dict["SSIM"]
-                val_fusion_kl_d += loss_dict["KL Divergence"]
 
     # Get Sample Outputs for the animation
     with torch.no_grad():
