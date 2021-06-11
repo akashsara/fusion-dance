@@ -38,6 +38,7 @@ latent_dim = 256
 use_noise_images = True
 small_conv = True  # To use the 1x1 convolution layer
 use_sum = False  # Use a sum instead of a mean for our loss function
+fusion_use_sum = False # Whether to use sum or mean for the fusion losses
 use_ssim_loss = False
 mse_weight = 1
 ssim_weight = 1
@@ -334,7 +335,7 @@ for epoch in range(epochs):
                     midpoint_embedding,
                     fusion_mu,
                     fusion_log_var,
-                    use_sum=use_sum,
+                    use_sum=fusion_use_sum,
                     ssim_module=None,
                     mse_weight=mse_weight,
                     ssim_weight=ssim_weight,
@@ -356,7 +357,7 @@ for epoch in range(epochs):
                 batch_loss, loss_dict = loss.mse_ssim_loss(
                     fusion_output,
                     fusion,
-                    use_sum=use_sum,
+                    use_sum=fusion_use_sum,
                     ssim_module=ssim_module,
                     mse_weight=mse_weight,
                     ssim_weight=ssim_weight,
@@ -431,7 +432,7 @@ for epoch in range(epochs):
                     midpoint_embedding,
                     fusion_mu,
                     fusion_log_var,
-                    use_sum=use_sum,
+                    use_sum=fusion_use_sum,
                     ssim_module=None,
                     mse_weight=mse_weight,
                     ssim_weight=ssim_weight,
@@ -451,7 +452,7 @@ for epoch in range(epochs):
                 batch_loss, loss_dict = loss.mse_ssim_loss(
                     fusion_output,
                     fusion,
-                    use_sum=use_sum,
+                    use_sum=fusion_use_sum,
                     ssim_module=ssim_module,
                     mse_weight=mse_weight,
                     ssim_weight=ssim_weight,
