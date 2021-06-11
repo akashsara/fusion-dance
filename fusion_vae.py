@@ -46,6 +46,8 @@ reconstruction_weight = 1
 kl_d_weight = 1  # equivalent to beta in a Beta-VAE
 fusion_reconstruction_weight = 1
 fusion_kl_d_weight = 1  # equivalent to beta in a Beta-VAE
+num_mse = 0  # Each increment halves the image sizes and takes the MSE
+num_fusion_mse = 0  # Each increment halves the image sizes and takes the MSE
 
 # Fusion Parameters
 fusion_mode = "both"  # encoder, decoder, both
@@ -287,6 +289,21 @@ for epoch in range(epochs):
             reconstruction_weight=reconstruction_weight,
             kl_weight=kl_d_weight,
         )
+        # For multiple MSE
+        # For every MSE, we halve the image size
+        # And take the MSE between the resulting images
+        for i in range(num_mse):
+            new_size = image_size // pow(2, i + 1)
+            with torch.no_grad():
+                resized_batch = nn.functional.interpolate(
+                    batch, size=new_size, mode="bilinear"
+                )
+            resized_output = nn.functional.interpolate(
+                reconstructed, size=new_size, mode="bilinear"
+            )
+            mse = loss.mse_loss(resized_output, resized_batch, use_sum)
+            batch_loss += mse
+            loss_dict["MSE"] += mse.item()
         # Backprop
         batch_loss.backward()
         # Update our optimizer parameters
@@ -362,6 +379,21 @@ for epoch in range(epochs):
                     mse_weight=mse_weight,
                     ssim_weight=ssim_weight,
                 )
+                # For multiple MSE
+                # For every MSE, we halve the image size
+                # And take the MSE between the resulting images
+                for i in range(num_fusion_mse):
+                    new_size = image_size // pow(2, i + 1)
+                    with torch.no_grad():
+                        resized_batch = nn.functional.interpolate(
+                            fusion, size=new_size, mode="bilinear"
+                        )
+                    resized_output = nn.functional.interpolate(
+                        fusion_output, size=new_size, mode="bilinear"
+                    )
+                    mse = loss.mse_loss(resized_output, resized_batch, use_sum)
+                    batch_loss += mse
+                    loss_dict["MSE"] += mse.item()
                 # Backprop
                 batch_loss.backward()
                 # Add the batch's loss to the total loss for the epoch
@@ -397,7 +429,20 @@ for epoch in range(epochs):
                 reconstruction_weight=reconstruction_weight,
                 kl_weight=kl_d_weight,
             )
-
+            # For multiple MSE
+            # For every MSE, we halve the image size
+            # And take the MSE between the resulting images
+            for i in range(num_mse):
+                new_size = image_size // pow(2, i + 1)
+                resized_batch = nn.functional.interpolate(
+                    batch, size=new_size, mode="bilinear"
+                )
+                resized_output = nn.functional.interpolate(
+                    reconstructed, size=new_size, mode="bilinear"
+                )
+                mse = loss.mse_loss(resized_output, resized_batch, use_sum)
+                batch_loss += mse
+                loss_dict["MSE"] += mse.item()
             # Add the batch's loss to the total loss for the epoch
             val_loss += batch_loss.item()
             val_recon_loss += loss_dict["MSE"] + loss_dict["SSIM"]
@@ -457,6 +502,20 @@ for epoch in range(epochs):
                     mse_weight=mse_weight,
                     ssim_weight=ssim_weight,
                 )
+                # For multiple MSE
+                # For every MSE, we halve the image size
+                # And take the MSE between the resulting images
+                for i in range(num_fusion_mse):
+                    new_size = image_size // pow(2, i + 1)
+                    resized_batch = nn.functional.interpolate(
+                        fusion, size=new_size, mode="bilinear"
+                    )
+                    resized_output = nn.functional.interpolate(
+                        fusion_output, size=new_size, mode="bilinear"
+                    )
+                    mse = loss.mse_loss(resized_output, resized_batch, use_sum)
+                    batch_loss += mse
+                    loss_dict["MSE"] += mse.item()
                 # Add the batch's loss to the total loss for the epoch
                 val_fusion_loss += batch_loss.item()
                 val_fusion_recon_loss += loss_dict["MSE"] + loss_dict["SSIM"]
