@@ -188,19 +188,18 @@ for epoch in range(epochs):
         # For multiple MSE
         # For every MSE, we halve the image size
         # And take the MSE between the resulting images
-        if num_mse > 0:
-            for i in range(num_mse):
-                new_size = image_size // pow(2, i + 1)
-                with torch.no_grad():
-                    resized_batch = nn.functional.interpolate(
-                        batch, size=new_size, mode="bilinear"
-                    )
-                resized_output = nn.functional.interpolate(
-                    reconstructed, size=new_size, mode="bilinear"
+        for i in range(num_mse):
+            new_size = image_size // pow(2, i + 1)
+            with torch.no_grad():
+                resized_batch = nn.functional.interpolate(
+                    batch, size=new_size, mode="bilinear"
                 )
-                mse = loss.mse_loss(resized_output, resized_batch, use_sum)
-                batch_loss += mse
-                loss_dict["MSE"] += mse.item()
+            resized_output = nn.functional.interpolate(
+                reconstructed, size=new_size, mode="bilinear"
+            )
+            mse = loss.mse_loss(resized_output, resized_batch, use_sum)
+            batch_loss += mse
+            loss_dict["MSE"] += mse.item()
 
         # Backprop
         batch_loss.backward()
@@ -237,6 +236,20 @@ for epoch in range(epochs):
                 kl_weight=kl_d_weight,
             )
 
+            # For multiple MSE
+            # For every MSE, we halve the image size
+            # And take the MSE between the resulting images
+            for i in range(num_mse):
+                new_size = image_size // pow(2, i + 1)
+                resized_batch = nn.functional.interpolate(
+                    batch, size=new_size, mode="bilinear"
+                )
+                resized_output = nn.functional.interpolate(
+                    reconstructed, size=new_size, mode="bilinear"
+                )
+                mse = loss.mse_loss(resized_output, resized_batch, use_sum)
+                batch_loss += mse
+                loss_dict["MSE"] += mse.item()
             # Add the batch's loss to the total loss for the epoch
             val_loss += batch_loss.item()
             val_recon_loss += loss_dict["MSE"] + loss_dict["SSIM"]
