@@ -128,9 +128,6 @@ optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 ssim_module = None
 if use_ssim_loss:
-    # TODO: Support for use_sum=True
-    # Current behavior gives the average SSIM
-    # Library doesn't have a properly implemented size_average=False
     ssim_module = pytorch_msssim.SSIM(
         data_range=1.0, win_size=11, win_sigma=1.5, K=(0.01, 0.03)
     )
