@@ -38,7 +38,7 @@ latent_dim = 256
 use_noise_images = True
 small_conv = True  # To use the 1x1 convolution layer
 use_sum = False  # Use a sum instead of a mean for our loss function
-fusion_use_sum = False # Whether to use sum or mean for the fusion losses
+fusion_use_sum = False  # Whether to use sum or mean for the fusion losses
 use_ssim_loss = False
 mse_weight = 1
 ssim_weight = 1
@@ -50,6 +50,8 @@ num_mse = 0  # Each increment halves the image sizes and takes the MSE
 num_fusion_mse = 0  # Each increment halves the image sizes and takes the MSE
 
 # Fusion Parameters
+# Whether to use fusions in the normal training process
+train_reconstruction_on_fusions = False
 fusion_mode = "both"  # encoder, decoder, both
 freeze_conv_for_fusions = True
 fusion_training_epoch_start = 0
@@ -114,6 +116,18 @@ if not os.path.exists(fusion_output_dir):
 train = data.load_images_from_folder(train_data_folder, use_noise_images)
 val = data.load_images_from_folder(val_data_folder, use_noise_images)
 test = data.load_images_from_folder(test_data_folder, use_noise_images)
+
+if train_reconstruction_on_fusions:
+    fusion_train = data.load_images_from_folder(
+        train_fusion_data_folder, use_noise_images
+    )
+    train.update(fusion_train)
+    fusion_val = data.load_images_from_folder(val_fusion_data_folder, use_noise_images)
+    val.update(fusion_val)
+    fusion_test = data.load_images_from_folder(
+        test_fusion_data_folder, use_noise_images
+    )
+    test.update(fusion_test)
 
 # Preprocess & Create Data Loaders
 transform = data.image2tensor_resize(image_size)
@@ -196,9 +210,6 @@ optimizer = torch.optim.Adam(model.parameters(), lr=fusion_learning_rate)
 
 ssim_module = None
 if use_ssim_loss:
-    # TODO: Support for use_sum=True
-    # Current behavior gives the average SSIM
-    # Library doesn't have a properly implemented size_average=False
     ssim_module = pytorch_msssim.SSIM(
         data_range=1.0, win_size=11, win_sigma=1.5, K=(0.01, 0.03)
     )
