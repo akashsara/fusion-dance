@@ -76,6 +76,37 @@ class FusionDataset(torch.utils.data.Dataset):
         return len(self.all_images)
 
 
+class CombinedDataset(torch.utils.data.Dataset):
+    def __init__(self, dataset_path, fusion_dataset_path, transform, use_noise_images):
+        self.dataset_path = dataset_path
+        self.fusion_dataset_path = fusion_dataset_path
+        if use_noise_images:
+            self.base_images = os.listdir(dataset_path)
+            self.fusion_images = os.listdir(fusion_dataset_path)
+        else:
+            all_images = os.listdir(dataset_path)
+            self.base_images = [x for x in all_images if "noise" not in x]
+            all_images = os.listdir(fusion_dataset_path)
+            self.fusion_images = [x for x in all_images if "noise" not in x]
+        self.all_images = self.base_images + self.fusion_images
+        self.transform = transform
+
+    def __getitem__(self, index):
+        filename = self.all_images[index]
+        if filename in self.base_images:
+            filepath = os.path.join(self.dataset_path, filename)
+        elif filename in self.fusion_images:
+            filepath = os.path.join(self.fusion_dataset_path, filename)
+        else:
+            raise ValueError(f"Could not find file: {filename}")
+        image = Image.open(filepath).convert("RGB")
+        image = self.transform(image)
+        return filename, image
+
+    def __len__(self):
+        return len(self.all_images)
+
+
 def load_images_from_folder(folder, use_noise_images):
     dataset = {}
     for file in os.listdir(folder):

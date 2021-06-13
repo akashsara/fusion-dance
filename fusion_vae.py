@@ -112,29 +112,29 @@ if not os.path.exists(fusion_output_dir):
 ################################## Data Setup ##################################
 ################################################################################
 
+# Preprocess & Create Data Loaders
+transform = data.image2tensor_resize(image_size)
+
 # Load Standard Data
+# TODO Not very efficient since it gets loaded again in the first cases
 train = data.load_images_from_folder(train_data_folder, use_noise_images)
 val = data.load_images_from_folder(val_data_folder, use_noise_images)
 test = data.load_images_from_folder(test_data_folder, use_noise_images)
 
 if train_reconstruction_on_fusions:
-    fusion_train = data.load_images_from_folder(
-        train_fusion_data_folder, use_noise_images
+    train_data = data.CombinedDataset(
+        train_data_folder, train_fusion_data_folder, transform, use_noise_images
     )
-    train.update(fusion_train)
-    fusion_val = data.load_images_from_folder(val_fusion_data_folder, use_noise_images)
-    val.update(fusion_val)
-    fusion_test = data.load_images_from_folder(
-        test_fusion_data_folder, use_noise_images
+    val_data = data.CombinedDataset(
+        val_data_folder, val_fusion_data_folder, transform, use_noise_images
     )
-    test.update(fusion_test)
-
-# Preprocess & Create Data Loaders
-transform = data.image2tensor_resize(image_size)
-
-train_data = data.CustomDataset(train, transform)
-val_data = data.CustomDataset(val, transform)
-test_data = data.CustomDataset(test, transform)
+    test_data = data.CombinedDataset(
+        test_data_folder, test_fusion_data_folder, transform, use_noise_images
+    )
+else:
+    train_data = data.CustomDataset(train, transform)
+    val_data = data.CustomDataset(val, transform)
+    test_data = data.CustomDataset(test, transform)
 
 train_fusions = data.FusionDataset(
     train_fusion_data_folder, train, val, test, transform
