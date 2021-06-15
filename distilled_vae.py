@@ -48,7 +48,7 @@ teacher_small_conv = True
 teacher_model_path = f"path_to_model"
 teacher_use_sum = False
 
-# How much the soft outputs affect the model training 
+# How much the soft outputs affect the model training
 temperature = 0
 
 data_prefix = "path_to_data"
@@ -185,7 +185,7 @@ for epoch in range(epochs):
         batch = batch.to(device)
 
         # Run our model & get outputs
-        reconstructed, mu, log_var = model(batch)
+        reconstructed, mu, log_var, student_logits = model(batch, return_logits=True)
 
         # Calculate loss
         batch_loss, loss_dict = loss.VAE_loss(
@@ -216,14 +216,14 @@ for epoch in range(epochs):
             mse = loss.mse_loss(resized_output, resized_batch, use_sum)
             batch_loss += mse
             loss_dict["MSE"] += mse.item()
-        
+
         with torch.no_grad():
-            teacher_output = teacher_model(batch)
-            
+            _, teacher_logits = teacher_model(batch, return_logits=True)
+
         # Calculate teacher loss
         teacher_loss, teacher_loss_dict = loss.mse_ssim_loss(
-            reconstructed,
-            teacher_output,
+            student_logits,
+            teacher_logits,
             use_sum=teacher_use_sum,
             ssim_module=None,
             mse_weight=mse_weight,
@@ -253,7 +253,9 @@ for epoch in range(epochs):
             batch = batch.to(device)
 
             # Run our model & get outputs
-            reconstructed, mu, log_var = model(batch)
+            reconstructed, mu, log_var, student_logits = model(
+                batch, return_logits=True
+            )
 
             # Calculate reconstruction loss
             batch_loss, loss_dict = loss.VAE_loss(
@@ -284,12 +286,12 @@ for epoch in range(epochs):
                 batch_loss += mse
                 loss_dict["MSE"] += mse.item()
 
-            teacher_output = teacher_model(batch)
+            _, teacher_logits = teacher_model(batch, return_logits=True)
 
             # Calculate teacher loss
             teacher_loss, teacher_loss_dict = loss.mse_ssim_loss(
-                reconstructed,
-                teacher_output,
+                student_logits,
+                teacher_logits,
                 use_sum=teacher_use_sum,
                 ssim_module=None,
                 mse_weight=mse_weight,

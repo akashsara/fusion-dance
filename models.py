@@ -134,12 +134,19 @@ class ConvolutionalAE(nn.Module):
             channel_sizes.append((prev, new))
         return channel_sizes
 
-    def forward(self, x):
+    def forward(self, x, return_logits=False):
         # Encode
         hidden_state = self.encoder(x)
         # Decode
-        reconstructed = self.decoder(hidden_state)
-        return reconstructed
+        if return_logits:
+            for layer in self.decoder[:-1]:
+                hidden_state = layer(hidden_state)
+            logits = hidden_state
+            reconstructed = self.decoder[-1](hidden_state)
+            return reconstructed, logits
+        else:
+            reconstructed = self.decoder(hidden_state)
+            return reconstructed
 
 
 # Ref: https://github.com/sksq96/pytorch-vae/blob/master/vae-cnn.ipynb
@@ -271,13 +278,20 @@ class ConvolutionalVAE(nn.Module):
             channel_sizes.append((prev, new))
         return channel_sizes
 
-    def forward(self, x):
+    def forward(self, x, return_logits=False):
         mu, log_var = self.get_latent_variables(x)
         # Reparameterize
         z = self.reparameterize(mu, log_var)
         # Decode
-        reconstructed = self.decoder(z)
-        return reconstructed, mu, log_var
+        if return_logits:
+            for layer in self.decoder[:-1]:
+                z = layer(z)
+            logits = z
+            reconstructed = self.decoder[-1](z)
+            return reconstructed, mu, log_var, logits
+        else:
+            reconstructed = self.decoder(z)
+            return reconstructed, mu, log_var
 
     def reparameterize(self, mu, log_var):
         std = torch.exp(log_var.mul(0.5))  # log sqrt(x) = log x^0.5 = 0.5 log x
