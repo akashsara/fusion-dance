@@ -225,30 +225,13 @@ for epoch in range(epochs):
             reconstructed,
             teacher_output,
             use_sum=teacher_use_sum,
-            ssim_module=ssim_module,
+            ssim_module=None,
             mse_weight=mse_weight,
             ssim_weight=ssim_weight,
         )
 
-        # For multiple MSE
-        # For every MSE, we halve the image size
-        # And take the MSE between the resulting images
-        for i in range(num_mse):
-            new_size = image_size // pow(2, i + 1)
-            with torch.no_grad():
-                resized_batch = nn.functional.interpolate(
-                    teacher_output, size=new_size, mode="bilinear"
-                )
-            resized_output = nn.functional.interpolate(
-                reconstructed, size=new_size, mode="bilinear"
-            )
-            mse = loss.mse_loss(resized_output, resized_batch, use_sum)
-            teacher_loss += mse
-            teacher_loss_dict["MSE"] += mse.item()
-
         # Compute Overall Loss
-        batch_loss = batch_loss * (1 - temperature)
-        batch_loss += (teacher_loss * temperature)
+        batch_loss = batch_loss + (teacher_loss * temperature)
         loss_dict["MSE"] += teacher_loss_dict["MSE"]
         loss_dict["SSIM"] += teacher_loss_dict["SSIM"]
         # Backprop
@@ -308,30 +291,13 @@ for epoch in range(epochs):
                 reconstructed,
                 teacher_output,
                 use_sum=teacher_use_sum,
-                ssim_module=ssim_module,
+                ssim_module=None,
                 mse_weight=mse_weight,
                 ssim_weight=ssim_weight,
             )
 
-            # For multiple MSE
-            # For every MSE, we halve the image size
-            # And take the MSE between the resulting images
-            for i in range(num_mse):
-                new_size = image_size // pow(2, i + 1)
-                with torch.no_grad():
-                    resized_batch = nn.functional.interpolate(
-                        teacher_output, size=new_size, mode="bilinear"
-                    )
-                resized_output = nn.functional.interpolate(
-                    reconstructed, size=new_size, mode="bilinear"
-                )
-                mse = loss.mse_loss(resized_output, resized_batch, use_sum)
-                teacher_loss += mse
-                teacher_loss_dict["MSE"] += mse.item()
-
             # Compute Overall Loss
-            batch_loss = batch_loss * (1 - temperature)
-            batch_loss += (teacher_loss * temperature)
+            batch_loss = batch_loss + (teacher_loss * temperature)
             loss_dict["MSE"] += teacher_loss_dict["MSE"]
             loss_dict["SSIM"] += teacher_loss_dict["SSIM"]
 
