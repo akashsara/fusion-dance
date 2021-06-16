@@ -247,6 +247,7 @@ for epoch in range(epochs):
     train_fusion_loss = 0
     val_fusion_loss = 0
 
+    model.train()
     if train_all:
         if learning_rate != fusion_learning_rate:
             optimizer = models.set_learning_rate(optimizer, learning_rate)
@@ -346,6 +347,7 @@ for epoch in range(epochs):
         models.toggle_layer_freezing(freezable_layers, trainable=True)
 
     # Validation Loop - Standard
+    model.eval()
     with torch.no_grad():
         for iteration, batch in enumerate(tqdm(val_dataloader)):
             # Move batch to device

@@ -279,6 +279,7 @@ for epoch in range(epochs):
         optimizer = models.set_learning_rate(optimizer, learning_rate)
 
     # Training Loop - Standard
+    model.train()
     for iteration, batch in enumerate(tqdm(train_dataloader)):
         # Reset gradients back to zero for this iteration
         optimizer.zero_grad()
@@ -420,6 +421,7 @@ for epoch in range(epochs):
         models.toggle_layer_freezing(freezable_layers, trainable=True)
 
     # Validation Loop - Standard
+    model.eval()
     with torch.no_grad():
         for iteration, batch in enumerate(tqdm(val_dataloader)):
             # Move batch to device

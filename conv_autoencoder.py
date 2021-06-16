@@ -153,6 +153,7 @@ for epoch in range(epochs):
     val_loss = 0
 
     # Training Loop
+    model.train()
     for iteration, batch in enumerate(tqdm(train_dataloader)):
         # Reset gradients back to zero for this iteration
         optimizer.zero_grad()
@@ -178,6 +179,7 @@ for epoch in range(epochs):
         train_loss += batch_loss.item()
 
     # Validation Loop
+    model.eval()
     with torch.no_grad():
         for iteration, batch in enumerate(tqdm(val_dataloader)):
             # Move batch to device

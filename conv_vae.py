@@ -157,6 +157,7 @@ for epoch in range(epochs):
     val_kl_d = 0
 
     # Training Loop
+    model.train()
     for iteration, batch in enumerate(tqdm(train_dataloader)):
         # Reset gradients back to zero for this iteration
         optimizer.zero_grad()
@@ -210,6 +211,7 @@ for epoch in range(epochs):
         train_kl_d += loss_dict["KL Divergence"]
 
     # Validation Loop
+    model.eval()
     with torch.no_grad():
         for iteration, batch in enumerate(tqdm(val_dataloader)):
             # Move batch to device
