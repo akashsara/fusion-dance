@@ -209,9 +209,9 @@ for epoch in range(epochs):
         noise_output, noise_lth_output = discriminator(reconstructed_noise)
 
         # Calculate Loss
-        disc_real_loss = F.binary_cross_entropy(real_output, y_real)
-        disc_recon_loss = F.binary_cross_entropy(recon_output, y_fake)
-        disc_noise_loss = F.binary_cross_entropy(noise_output, y_fake)
+        disc_real_loss = loss.bce_loss(real_output, y_real, use_sum)
+        disc_recon_loss = loss.bce_loss(recon_output, y_fake, use_sum)
+        disc_noise_loss = loss.bce_loss(noise_output, y_fake, use_sum)
         L_gan = disc_real_loss + disc_recon_loss + disc_noise_loss
         L_prior = loss.kl_divergence(mu, log_var, use_sum)
         L_reconstruction = loss.mse_loss(recon_lth_output, real_lth_output, use_sum)
@@ -272,9 +272,9 @@ for epoch in range(epochs):
             noise_output, noise_lth_output = discriminator(reconstructed_noise)
 
             # Calculate Loss
-            disc_real_loss = F.binary_cross_entropy(real_output, y_real)
-            disc_recon_loss = F.binary_cross_entropy(recon_output, y_fake)
-            disc_noise_loss = F.binary_cross_entropy(noise_output, y_fake)
+            disc_real_loss = loss.bce_loss(real_output, y_real, use_sum)
+            disc_recon_loss = loss.bce_loss(recon_output, y_fake, use_sum)
+            disc_noise_loss = loss.bce_loss(noise_output, y_fake, use_sum)
             L_gan = disc_real_loss + disc_recon_loss + disc_noise_loss
             L_prior = loss.kl_divergence(mu, log_var, use_sum)
             L_reconstruction = loss.mse_loss(recon_lth_output, real_lth_output, use_sum)
