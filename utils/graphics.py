@@ -51,10 +51,15 @@ def draw_loss(all_train_loss, all_val_loss, loss_output_path, mode):
     plt.figure(figsize=(8, 6), dpi=100)
     ax = plt.subplot()
     if mode == "vae":
-        plt.plot([x[1] for x in all_train_loss], label="Train Reconstruction Loss")
-        plt.plot([x[2] for x in all_train_loss], label="Train KL-Divergence")
-        plt.plot([x[1] for x in all_val_loss], label="Validation Reconstruction Loss")
-        plt.plot([x[2] for x in all_val_loss], label="Validation KL-Divergence")
+        for i, label in enumerate(["Reconstruction Loss", "KL-Divergence"]):
+            plt.plot([x[i + 1] for x in all_train_loss], label=f"Train {label}")
+            plt.plot([x[i + 1] for x in all_val_loss], label=f"Validation {label}")
+    elif mode == "vaegan":
+        for i, label in enumerate(
+            ["Encoder Loss", "Decoder Loss", "Discriminator Loss"]
+        ):
+            plt.plot([x[i + 1] for x in all_train_loss], label=f"Train {label}")
+            plt.plot([x[i + 1] for x in all_val_loss], label=f"Validation {label}")
     else:
         plt.plot([x for x in all_train_loss], label="Train Loss")
         plt.plot([x for x in all_val_loss], label="Validation Loss")
