@@ -190,8 +190,8 @@ for epoch in range(epochs):
 
         # Create Labels
         current_batch_size = batch.shape[0]
-        y_real = torch.ones(current_batch_size, 1)
-        y_fake = torch.zeros(current_batch_size, 1)
+        y_real = torch.ones(current_batch_size, 1).to(device)
+        y_fake = torch.zeros(current_batch_size, 1).to(device)
 
         # Encoded Image
         latent_representation, mu, log_var = encoder(batch)
@@ -201,7 +201,7 @@ for epoch in range(epochs):
 
         # Decoded Fake Image (Noise)
         noise_representation = torch.randn(current_batch_size, vae_latent_dim)
-        reconstructed_noise = decoder(noise_representation)
+        reconstructed_noise = decoder(noise_representation.to(device))
 
         # Run Discriminator for Real, Fake (Reconstructed), Fake (Noise) Images
         real_output, real_lth_output = discriminator(batch)
@@ -253,8 +253,8 @@ for epoch in range(epochs):
 
             # Create Labels
             current_batch_size = batch.shape[0]
-            y_real = torch.ones(current_batch_size, 1)
-            y_fake = torch.zeros(current_batch_size, 1)
+            y_real = torch.ones(current_batch_size, 1).to(device)
+            y_fake = torch.zeros(current_batch_size, 1).to(device)
 
             # Encoded Image
             latent_representation, mu, log_var = encoder(batch)
@@ -264,7 +264,7 @@ for epoch in range(epochs):
 
             # Decoded Fake Image (Noise)
             noise_representation = torch.randn(current_batch_size, vae_latent_dim)
-            reconstructed_noise = decoder(noise_representation)
+            reconstructed_noise = decoder(noise_representation.to(device))
 
             # Run Discriminator for Real, Fake (Reconstructed), Fake (Noise) Images
             real_output, real_lth_output = discriminator(batch)
