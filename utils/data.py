@@ -107,6 +107,95 @@ class CombinedDataset(torch.utils.data.Dataset):
         return len(self.all_images)
 
 
+class FusionDatasetV2(torch.utils.data.Dataset):
+    def __init__(
+        self,
+        dataset_path,
+        fusion_dataset_path,
+        dataset_parent_dir,
+        transform,
+        use_noise_images,
+    ):
+        self.dataset_path = dataset_path
+        self.fusion_dataset_path = fusion_dataset_path
+        self.dataset_parent_dir = dataset_parent_dir
+        """
+        # We cache all file locations here regardless of train/test/val
+        # However, train fusions only use images from the training set.
+        # This is needed for val & test fusions 
+        # Which may need base images from the training data
+        """
+        all_data = {}
+        for folder in os.listdir(dataset_parent_dir):
+            all_data[folder] = []
+            for file in os.listdir(os.path.join(dataset_parent_dir, folder)):
+                all_data[folder].append(file)
+            all_data[folder] = set(all_data[folder])
+        self.all_data = all_data
+        if use_noise_images:
+            self.base_images = os.listdir(dataset_path)
+            self.fusion_images = os.listdir(fusion_dataset_path)
+        else:
+            all_images = os.listdir(dataset_path)
+            self.base_images = [x for x in all_images if "noise" not in x]
+            all_images = os.listdir(fusion_dataset_path)
+            self.fusion_images = [x for x in all_images if "noise" not in x]
+        self.all_images = self.base_images + self.fusion_images
+        self.transform = transform
+
+    def to_3_digit(self, num):
+        return "0" * (3 - len(num)) + num
+
+    def get_base_image(self, num, background):
+        # if Base BW is not there, search for female BW
+        filenames = [
+            f"{num}_base_bw_{background}_0rotation.png",
+            f"{num}_base_female_bw_{background}_0rotation.png",
+        ]
+        for dataset in self.all_data:
+            for filename in filenames:
+                if filename in self.all_data[dataset]:
+                    filepath = os.path.join(
+                        self.dataset_parent_dir, self.all_data[dataset], filename
+                    )
+                    image = Image.open(filepath).convert("RGB")
+                    return image, filename
+        return None, None
+
+    def __getitem__(self, index):
+        filename = self.all_images[index]
+        if filename in self.base_images:
+            # If normal image
+            filepath = os.path.join(self.dataset_path, filename)
+            image = Image.open(filepath).convert("RGB")
+            image = self.transform(image)
+            base_name = fusee_name = fusion_name = filename
+            base = fusee = fusion = image
+        elif filename in self.fusion_images:
+            # If fusion
+            # Get two base names
+            base, fusee, background, _ = filename.split(".")
+            base = self.to_3_digit(base)
+            fusee = self.to_3_digit(fusee)
+            # Get Base
+            base, base_name = self.get_base_image(base, background)
+            base = self.transform(base)
+            # Get Fusee
+            fusee, fusee_name = self.get_base_image(fusee, background)
+            fusee = self.transform(fusee)
+            # Get Fusion
+            fusion_name = filename
+            fusion = os.path.join(self.fusion_dataset_path, fusion_name)
+            fusion = Image.open(fusion).convert("RGB")
+            fusion = self.transform(fusion)
+        else:
+            raise ValueError(f"Could not find file: {filename}")
+        return (base_name, fusee_name, fusion_name), (base, fusee, fusion)
+
+    def __len__(self):
+        return len(self.all_images)
+
+
 def load_images_from_folder(folder, use_noise_images):
     dataset = {}
     for file in os.listdir(folder):
@@ -126,6 +215,24 @@ def get_samples_from_data(data, sample_size, fusion=False):
         else:
             sample.append(np.asarray(data[i][1]))
     return torch.as_tensor(sample)
+
+
+def get_samples_from_FusionDatasetV2(data, sample_size, mode):
+    samples = []
+    previous_i = []
+    iterations = 0
+    while len(samples) < sample_size and iterations <= 10000:
+        i = np.random.choice(len(data))
+        while i in previous_i:
+            i = np.random.choice(len(data))
+        _, (base, fusee, fusion) = data[i]
+        if mode == "standard" and base == fusee:
+            samples.append(base)
+        elif mode == "fusion" and base != fusee:
+            sample = [np.asarray(x) for x in [base, fusee, fusion]]
+            samples.append(sample)
+        previous_i.append(i)
+        iterations += 1
 
 
 def image2tensor_resize(image_size):
