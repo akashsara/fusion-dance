@@ -24,7 +24,7 @@ epochs = 2
 batch_size = 64
 num_dataloader_workers = 0
 
-experiment_name = f"convolutional_vae_v10"
+experiment_name = f"fusion_dual_input_vae_v1"
 
 num_layers = 4
 max_filters = 512
@@ -179,7 +179,7 @@ with torch.no_grad():
 
 # Add sample reconstruction to our list
 all_samples.append(epoch_sample.detach().cpu())
-all_fusion_samples.append(fusion_sample.detach().cpu())
+all_fusion_samples.append(epoch_fusion_sample.detach().cpu())
 
 for epoch in range(epochs):
     train_loss = 0
@@ -339,14 +339,15 @@ torch.save(model.state_dict(), model_output_path)
 fig, axis = graphics.make_grid(("Sample", sample), 4, 4)
 plt.savefig(animation_sample_image_name)
 # Plot Fusion Animation Sample
-fig, axis = graphics.make_grid(("Sample", fusion_sample), 4, 4)
+fusion_sample = [x for y in fusion_sample for x in y]
+fig, axis = graphics.make_grid(("Sample", fusion_sample), 4, 3)
 plt.savefig(fusion_animation_sample_image_name)
 
 # Create & Save Animation
 anim = graphics.make_animation(graphics.make_grid, all_samples)
 anim.save(animation_output_path)
 # Create & Save Fusion Animation
-fusion_anim = graphics.make_animation(graphics.make_grid, all_fusion_samples)
+fusion_anim = graphics.make_animation(graphics.make_grid, all_fusion_samples, width=3)
 fusion_anim.save(fusion_animation_output_path)
 
 model.eval()
@@ -398,16 +399,11 @@ print(f"\nMSE = {mse}, SSIM = {ssim_score}")
 test_sample = data.get_samples_from_FusionDatasetV2(test_data, 16, "standard")
 fusion_test_sample = data.get_samples_from_FusionDatasetV2(test_data, 4, "fusion")
 
-# Plot A Set of Test Images
-fig, axis = graphics.make_grid(("Test Sample", test_sample), 4, 4)
-plt.savefig(test_sample_input_name)
-fig, axis = graphics.make_grid(("Fusion Test Sample", fusion_test_sample), 4, 4)
-plt.savefig(fusion_test_sample_input_name)
-
+# Get Outputs for selected images
 with torch.no_grad():
     test_sample = test_sample.to(device)
-    test_sample_base = fusion_sample[:, 0].to(device)
-    test_sample_fusee = fusion_sample[:, 1].to(device)
+    test_sample_base = fusion_test_sample[:, 0].to(device)
+    test_sample_fusee = fusion_test_sample[:, 1].to(device)
     # Normal Image
     output_samples = model(test_sample, test_sample)[0].detach().cpu()
     # Fusion Image
@@ -418,6 +414,12 @@ with torch.no_grad():
         (output_base, output_fusee, output_fusion), dim=1
     ).flatten(end_dim=1)
 
+# Plot A Set of Test Images
+fig, axis = graphics.make_grid(("Test Sample", test_sample), 4, 4)
+plt.savefig(test_sample_input_name)
+fusion_test_sample = [x for y in fusion_test_sample for x in y]
+fig, axis = graphics.make_grid(("Fusion Test Sample", fusion_test_sample), 4, 3)
+plt.savefig(fusion_test_sample_input_name)
 
 # Plot A Set of Reconstructed Test Images
 fig, axis = graphics.make_grid(("Test Sample", output_samples), 4, 4)

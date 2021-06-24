@@ -156,7 +156,7 @@ class FusionDatasetV2(torch.utils.data.Dataset):
             for filename in filenames:
                 if filename in self.all_data[dataset]:
                     filepath = os.path.join(
-                        self.dataset_parent_dir, self.all_data[dataset], filename
+                        self.dataset_parent_dir, dataset, filename
                     )
                     image = Image.open(filepath).convert("RGB")
                     return image, filename
@@ -226,13 +226,17 @@ def get_samples_from_FusionDatasetV2(data, sample_size, mode):
         while i in previous_i:
             i = np.random.choice(len(data))
         _, (base, fusee, fusion) = data[i]
-        if mode == "standard" and base == fusee:
-            samples.append(base)
-        elif mode == "fusion" and base != fusee:
+        tensors_are_same = torch.equal(base, fusee)
+        if mode == "standard" and tensors_are_same:
+            samples.append(np.asarray(base))
+        elif mode == "fusion" and not tensors_are_same:
             sample = [np.asarray(x) for x in [base, fusee, fusion]]
             samples.append(sample)
         previous_i.append(i)
         iterations += 1
+    if len(samples) != sample_size:
+        raise ValueError(f"Error obtaining samples. Iterations={iterations}, Sample Size={sample_size}, Samples Obtained={len(samples)}")
+    return torch.as_tensor(samples)
 
 
 def image2tensor_resize(image_size):

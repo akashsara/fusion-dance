@@ -320,7 +320,7 @@ class FusionVAE(nn.Module):
         input_image_dimensions=96,
         small_conv=False,
     ):
-        super(ConvolutionalVAE, self).__init__()
+        super(FusionVAE, self).__init__()
         if small_conv:
             num_layers += 1
         channel_sizes = self.calculate_channel_sizes(
