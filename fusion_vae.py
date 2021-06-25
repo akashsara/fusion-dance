@@ -336,11 +336,11 @@ graphics.draw_loss(all_train_loss, all_val_loss, loss_output_path, mode="vae")
 torch.save(model.state_dict(), model_output_path)
 
 # Plot Animation Sample
-fig, axis = graphics.make_grid(("Sample", sample), 4, 4)
+fig, axis = graphics.make_grid(("Sample", sample.detach().cpu()), 4, 4)
 plt.savefig(animation_sample_image_name)
 # Plot Fusion Animation Sample
 fusion_sample = [x for y in fusion_sample for x in y]
-fig, axis = graphics.make_grid(("Sample", fusion_sample), 4, 3)
+fig, axis = graphics.make_grid(("Sample", fusion_sample.detach().cpu()), 4, 3)
 plt.savefig(fusion_animation_sample_image_name)
 
 # Create & Save Animation
@@ -415,10 +415,10 @@ with torch.no_grad():
     ).flatten(end_dim=1)
 
 # Plot A Set of Test Images
-fig, axis = graphics.make_grid(("Test Sample", test_sample), 4, 4)
+fig, axis = graphics.make_grid(("Test Sample", test_sample.detach().cpu()), 4, 4)
 plt.savefig(test_sample_input_name)
 fusion_test_sample = [x for y in fusion_test_sample for x in y]
-fig, axis = graphics.make_grid(("Fusion Test Sample", fusion_test_sample), 4, 3)
+fig, axis = graphics.make_grid(("Fusion Test Sample", fusion_test_sample.detach().cpu()), 4, 3)
 plt.savefig(fusion_test_sample_input_name)
 
 # Plot A Set of Reconstructed Test Images
