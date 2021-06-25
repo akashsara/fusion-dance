@@ -155,9 +155,7 @@ class FusionDatasetV2(torch.utils.data.Dataset):
         for dataset in self.all_data:
             for filename in filenames:
                 if filename in self.all_data[dataset]:
-                    filepath = os.path.join(
-                        self.dataset_parent_dir, dataset, filename
-                    )
+                    filepath = os.path.join(self.dataset_parent_dir, dataset, filename)
                     image = Image.open(filepath).convert("RGB")
                     return image, filename
         return None, None
@@ -235,7 +233,9 @@ def get_samples_from_FusionDatasetV2(data, sample_size, mode):
         previous_i.append(i)
         iterations += 1
     if len(samples) != sample_size:
-        raise ValueError(f"Error obtaining samples. Iterations={iterations}, Sample Size={sample_size}, Samples Obtained={len(samples)}")
+        raise ValueError(
+            f"Error obtaining samples. Iterations={iterations}, Sample Size={sample_size}, Samples Obtained={len(samples)}"
+        )
     return torch.as_tensor(samples)
 
 
