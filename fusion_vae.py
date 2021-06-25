@@ -424,5 +424,5 @@ plt.savefig(fusion_test_sample_input_name)
 # Plot A Set of Reconstructed Test Images
 fig, axis = graphics.make_grid(("Test Sample", output_samples), 4, 4)
 plt.savefig(test_sample_output_name)
-fig, axis = graphics.make_grid(("Fusion Test Sample", output_fusions), 4, 4)
+fig, axis = graphics.make_grid(("Fusion Test Sample", output_fusions), 4, 3)
 plt.savefig(fusion_test_sample_output_name)
