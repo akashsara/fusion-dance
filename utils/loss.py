@@ -8,11 +8,12 @@ def mse_loss(reconstructed_x, x, use_sum):
     else:
         return nn.functional.mse_loss(reconstructed_x, x, reduction="mean")
 
+
 def bce_loss(reconstructed_x, x, use_sum):
     if use_sum:
-        return nn.functional.bce_loss(reconstructed_x, x, reduction="sum")
+        return nn.functional.binary_cross_entropy(reconstructed_x, x, reduction="sum")
     else:
-        return nn.functional.bce_loss(reconstructed_x, x, reduction="mean")
+        return nn.functional.binary_cross_entropy(reconstructed_x, x, reduction="mean")
 
 
 def kl_divergence(mu, log_var, use_sum):
