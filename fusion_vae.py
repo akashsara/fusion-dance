@@ -339,8 +339,8 @@ torch.save(model.state_dict(), model_output_path)
 fig, axis = graphics.make_grid(("Sample", sample.detach().cpu()), 4, 4)
 plt.savefig(animation_sample_image_name)
 # Plot Fusion Animation Sample
-fusion_sample = [x for y in fusion_sample for x in y]
-fig, axis = graphics.make_grid(("Sample", fusion_sample.detach().cpu()), 4, 3)
+fusion_sample = [x for y in fusion_sample.detach().cpu() for x in y]
+fig, axis = graphics.make_grid(("Sample", fusion_sample), 4, 3)
 plt.savefig(fusion_animation_sample_image_name)
 
 # Create & Save Animation
@@ -399,6 +399,13 @@ print(f"\nMSE = {mse}, SSIM = {ssim_score}")
 test_sample = data.get_samples_from_FusionDatasetV2(test_data, 16, "standard")
 fusion_test_sample = data.get_samples_from_FusionDatasetV2(test_data, 4, "fusion")
 
+# Plot A Set of Test Images
+fig, axis = graphics.make_grid(("Test Sample", test_sample), 4, 4)
+plt.savefig(test_sample_input_name)
+to_plot = [x for y in fusion_test_sample for x in y]
+fig, axis = graphics.make_grid(("Fusion Test Sample", to_plot), 4, 3)
+plt.savefig(fusion_test_sample_input_name)
+
 # Get Outputs for selected images
 with torch.no_grad():
     test_sample = test_sample.to(device)
@@ -413,13 +420,6 @@ with torch.no_grad():
     output_fusions = torch.stack(
         (output_base, output_fusee, output_fusion), dim=1
     ).flatten(end_dim=1)
-
-# Plot A Set of Test Images
-fig, axis = graphics.make_grid(("Test Sample", test_sample.detach().cpu()), 4, 4)
-plt.savefig(test_sample_input_name)
-fusion_test_sample = [x for y in fusion_test_sample for x in y]
-fig, axis = graphics.make_grid(("Fusion Test Sample", fusion_test_sample.detach().cpu()), 4, 3)
-plt.savefig(fusion_test_sample_input_name)
 
 # Plot A Set of Reconstructed Test Images
 fig, axis = graphics.make_grid(("Test Sample", output_samples), 4, 4)
