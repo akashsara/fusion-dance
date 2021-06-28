@@ -48,7 +48,7 @@ test_data_folder = os.path.join(data_prefix, "test")
 output_prefix = f"data\\{experiment_name}"
 
 output_dir = os.path.join(output_prefix, "generated")
-loss_output_path = os.path.join(output_prefix, "loss.jpg")
+loss_output_path = output_prefix
 model_output_path = os.path.join(output_prefix, "model.pt")
 
 animation_output_path = os.path.join(output_prefix, "animation.mp4")

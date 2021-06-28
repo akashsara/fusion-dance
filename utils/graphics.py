@@ -48,23 +48,47 @@ def make_animation(make_grid, all_samples, height=4, width=4):
 
 
 def draw_loss(all_train_loss, all_val_loss, loss_output_path, mode):
-    plt.figure(figsize=(8, 6), dpi=100)
-    ax = plt.subplot()
     if mode == "vae":
-        for i, label in enumerate(["Reconstruction Loss", "KL-Divergence"]):
-            plt.plot([x[i + 1] for x in all_train_loss], label=f"Train {label}")
-            plt.plot([x[i + 1] for x in all_val_loss], label=f"Validation {label}")
+        for i, label in enumerate(
+            ["Total Loss", "Reconstruction Loss", "KL-Divergence"]
+        ):
+            train_loss = [x[i] for x in all_train_loss]
+            val_loss = [x[i] for x in all_val_loss]
+            train_label = label = f"Train {label}"
+            val_label = f"Validation {label}"
+            label = label.lower().replace(" ", "_")
+            output_path = os.path.join(loss_output_path, f"{label}.jpg")
+            plot_and_save_loss(
+                train_loss, train_label, val_loss, val_label, output_path
+            )
     elif mode == "vaegan":
         for i, label in enumerate(
-            ["Encoder Loss", "Decoder Loss", "Discriminator Loss"]
+            ["Total Loss", "Encoder Loss", "Decoder Loss", "Discriminator Loss"]
         ):
-            plt.plot([x[i + 1] for x in all_train_loss], label=f"Train {label}")
-            plt.plot([x[i + 1] for x in all_val_loss], label=f"Validation {label}")
+            train_loss = [x[i] for x in all_train_loss]
+            val_loss = [x[i] for x in all_val_loss]
+            train_label = f"Train {label}"
+            val_label = f"Validation {label}"
+            label = label.lower().replace(" ", "_")
+            output_path = os.path.join(loss_output_path, f"{label}.jpg")
+            plot_and_save_loss(
+                train_loss, train_label, val_loss, val_label, output_path
+            )
     else:
-        plt.plot([x for x in all_train_loss], label="Train Loss")
-        plt.plot([x for x in all_val_loss], label="Validation Loss")
+        train_label = "Train Loss"
+        val_label = "Validation Loss"
+        plot_and_save_loss(
+            all_train_loss, train_label, all_val_loss, val_label, loss_output_path
+        )
+
+
+def plot_and_save_loss(train_loss, train_label, val_loss, val_label, output_path):
+    plt.figure(figsize=(8, 6), dpi=100)
+    ax = plt.subplot()
+    plt.plot(train_loss, label=train_label)
+    plt.plot(val_loss, label=val_label)
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Loss")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(loss_output_path)
+    plt.savefig(output_path)
