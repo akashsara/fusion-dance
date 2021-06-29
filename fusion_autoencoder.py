@@ -51,7 +51,7 @@ fusion_val_data_folder = os.path.join(fusion_data_prefix, "val")
 fusion_test_data_folder = os.path.join(fusion_data_prefix, "test")
 
 output_dir = os.path.join(output_prefix, "generated")
-loss_output_path = output_prefix
+loss_output_path = os.path.join(output_prefix, "loss.jpg")
 model_output_path = os.path.join(output_prefix, "model.pt")
 
 animation_output_path = os.path.join(output_prefix, "animation.mp4")
