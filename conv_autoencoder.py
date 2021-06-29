@@ -163,7 +163,7 @@ for epoch in range(epochs):
         # Run our model & get outputs
         reconstructed = model(batch)
         # Calculate reconstruction loss
-        batch_loss, _ = loss.mse_ssim_loss(
+        batch_loss, loss_dict = loss.mse_ssim_loss(
             batch,
             reconstructed,
             use_sum=False,
@@ -176,7 +176,7 @@ for epoch in range(epochs):
         # Update our optimizer parameters
         optimizer.step()
         # Add the batch's loss to the total loss for the epoch
-        train_loss += batch_loss.item()
+        train_loss += loss_dict["MSE"] + loss_dict["SSIM"]
 
     # Validation Loop
     model.eval()
@@ -188,7 +188,7 @@ for epoch in range(epochs):
             # Run our model & get outputs
             reconstructed = model(batch)
             # Calculate reconstruction loss
-            batch_loss, _ = loss.mse_ssim_loss(
+            batch_loss, loss_dict = loss.mse_ssim_loss(
                 batch,
                 reconstructed,
                 use_sum=False,
@@ -197,7 +197,7 @@ for epoch in range(epochs):
                 ssim_weight=ssim_weight,
             )
             # Add the batch's loss to the total loss for the epoch
-            val_loss += batch_loss.item()
+            val_loss += loss_dict["MSE"] + loss_dict["SSIM"]
         # Get reconstruction of our sample
         epoch_sample = model(sample.to(device))
 
