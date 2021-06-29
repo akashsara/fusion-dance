@@ -225,7 +225,6 @@ for epoch in range(epochs):
         optimizer.step()
         # Add the batch's loss to the total loss for the epoch
         train_loss += loss_dict["MSE"] + loss_dict["SSIM"]
-        break
 
     # Validation Loop
     model.eval()
@@ -264,7 +263,6 @@ for epoch in range(epochs):
                 loss_dict["MSE"] += mse.item()
             # Add the batch's loss to the total loss for the epoch
             val_loss += loss_dict["MSE"] + loss_dict["SSIM"]
-            break
 
         # Get reconstruction of our sample
         epoch_sample = model(sample, sample)
@@ -356,7 +354,6 @@ with torch.no_grad():
         reconstructed = reconstructed.permute(0, 2, 3, 1).detach().cpu().numpy()
         for image, filename in zip(reconstructed, fusion_filenames):
             plt.imsave(os.path.join(output_dir, filename), image)
-        break
 
 # Print Metrics
 mse = np.asarray(all_mse).mean()
