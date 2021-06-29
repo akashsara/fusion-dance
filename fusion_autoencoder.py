@@ -199,7 +199,7 @@ for epoch in range(epochs):
         batch_loss, loss_dict = loss.mse_ssim_loss(
             reconstructed,
             fusion,
-            use_sum=False,
+            use_sum=use_sum,
             ssim_module=ssim_module,
             mse_weight=mse_weight,
             ssim_weight=ssim_weight,
@@ -242,7 +242,7 @@ for epoch in range(epochs):
             batch_loss, loss_dict = loss.mse_ssim_loss(
                 reconstructed,
                 fusion,
-                use_sum=False,
+                use_sum=use_sum,
                 ssim_module=ssim_module,
                 mse_weight=mse_weight,
                 ssim_weight=ssim_weight,
