@@ -142,6 +142,7 @@ all_train_loss = []
 all_val_loss = []
 
 # Get an initial "epoch 0" sample
+model.eval()
 with torch.no_grad():
     epoch_sample, _, _ = model(sample.to(device))
 
