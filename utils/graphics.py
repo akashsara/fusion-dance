@@ -54,7 +54,7 @@ def draw_loss(all_train_loss, all_val_loss, loss_output_path, mode):
         ):
             train_loss = [x[i] for x in all_train_loss]
             val_loss = [x[i] for x in all_val_loss]
-            train_label = label = f"Train {label}"
+            train_label = f"Train {label}"
             val_label = f"Validation {label}"
             label = label.lower().replace(" ", "_")
             output_path = os.path.join(loss_output_path, f"{label}.jpg")
@@ -64,6 +64,19 @@ def draw_loss(all_train_loss, all_val_loss, loss_output_path, mode):
     elif mode == "vaegan":
         for i, label in enumerate(
             ["Total Loss", "Encoder Loss", "Decoder Loss", "Discriminator Loss"]
+        ):
+            train_loss = [x[i] for x in all_train_loss]
+            val_loss = [x[i] for x in all_val_loss]
+            train_label = f"Train {label}"
+            val_label = f"Validation {label}"
+            label = label.lower().replace(" ", "_")
+            output_path = os.path.join(loss_output_path, f"{label}.jpg")
+            plot_and_save_loss(
+                train_loss, train_label, val_loss, val_label, output_path
+            )
+    elif mode == "vqvae":
+        for i, label in enumerate(
+            ["Total Loss", "Reconstruction Loss", "Commitment Loss"]
         ):
             train_loss = [x[i] for x in all_train_loss]
             val_loss = [x[i] for x in all_val_loss]
