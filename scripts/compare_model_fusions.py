@@ -26,13 +26,27 @@ def pick_images(dir, num_images=8, max_tries=10000):
             break
         choice = np.random.choice(all_images)
         id_ = choice.split("_")[0]
+        # Allow multiple forms of the same Pokemon
         if id_ in unique_ids:
             continue
         # To guarantee we have a fusion
-        if int(id_.split("-")[0]) > 251:
+        id_ = id_.split("-")[0]
+        if int(id_) > 251:
             continue
+        # To ensure color/sprite matches fusion
+        filenames = [
+            f"{id_}_base_bw_whiteBG_0rotation.png",
+            f"{id_}_base_bw_blackBG_0rotation.png",
+            f"{id_}_base_female_bw_whiteBG_0rotation.png",
+            f"{id_}_base_female_bw_blackBG_0rotation.png",
+        ]
+        if choice not in filenames:
+            for filename in filenames:
+                if filename in all_images:
+                    choice = filename
+                    break
         selected.append(choice)
-        unique_ids.append(id_.split("-")[0])
+        unique_ids.append(id_)
     selected = [list(x) for x in np.array(selected).reshape(-1, 2)]
     unique_ids = [list(x) for x in np.array(unique_ids).reshape(-1, 2)]
     return selected, unique_ids
@@ -84,26 +98,54 @@ def load_model(
     model_type,
     max_filters,
     num_layers,
-    input_image_dimensions,
-    latent_dim,
+    image_size,
+    model_parameters,
     small_conv,
     model_path,
     device,
 ):
-    if model_type == "autoencoder":
-        model = models.ConvolutionalAE(
-            max_filters=max_filters,
-            num_layers=num_layers,
-            input_image_dimensions=image_size,
-            latent_dim=latent_dim,
-            small_conv=small_conv,
-        )
-    else:
+    if model_type == "vae":
         model = models.ConvolutionalVAE(
             max_filters=max_filters,
             num_layers=num_layers,
             input_image_dimensions=image_size,
-            latent_dim=latent_dim,
+            latent_dim=model_parameters,
+            small_conv=small_conv,
+        )
+    elif model_type == "dual_input_vae":
+        model = models.FusionVAE(
+            max_filters=max_filters,
+            num_layers=num_layers,
+            input_image_dimensions=image_size,
+            latent_dim=model_parameters,
+            small_conv=small_conv,
+        )
+    elif model_type == "vq_vae":
+        num_embeddings = model_parameters["K"]
+        embedding_dim = model_parameters["D"]
+        commitment_cost = model_parameters["commitment_cost"]
+        model = models.VQVAE(
+            num_layers=num_layers,
+            input_image_dimensions=image_size,
+            small_conv=small_conv,
+            embedding_dim=embedding_dim,
+            num_embeddings=num_embeddings,
+            commitment_cost=commitment_cost,
+        )
+    elif model_type == "dual_input_autoencoder":
+        model = models.FusionAE(
+            max_filters=max_filters,
+            num_layers=num_layers,
+            input_image_dimensions=image_size,
+            latent_dim=model_parameters,
+            small_conv=small_conv,
+        )
+    else:
+        model = models.ConvolutionalAE(
+            max_filters=max_filters,
+            num_layers=num_layers,
+            input_image_dimensions=image_size,
+            latent_dim=model_parameters,
             small_conv=small_conv,
         )
     model.load_state_dict(torch.load(model_path, map_location=device))
@@ -117,7 +159,7 @@ device = torch.device("cuda" if gpu else "cpu")
 base_dir = "data\\original\\original_data"
 base_fusion_dir = "data\\backup\\japeal_renamed"
 output_dir = "data"
-model_prefix = f"outputs/"
+model_prefix = f"outputs\\tbd\\"
 num_images = 4  # Number of fusions
 batch_size = 64
 num_layers = 4
@@ -127,22 +169,12 @@ small_conv = True  # To use the 1x1 convolution layer
 
 # model_name: latent_dim
 model_config = {
-    "convolutional_vae_v6": 256,
-    "convolutional_vae_v12": 256,
-    "convolutional_vae_v12.1": 256,
-    "convolutional_vae_v12.2": 256,
-    "convolutional_vae_v12.3": 256,
-    "convolutional_vae_v12.4": 256,
-    "convolutional_vae_v12.5": 256,
-    "convolutional_vae_v12.6": 256,
-    "convolutional_vae_v12.7": 256,
-    "convolutional_vae_v15": 256,
-    "convolutional_vae_v15.1": 256,
-    "convolutional_vae_v15.2": 256,
-    "convolutional_vae_v15.3": 256,
-    "convolutional_vae_v15.4": 256,
-    "convolutional_vae_v15.5": 256,
-    "convolutional_vae_v15.6": 256,
+    "vq_vae_v1": {"K": 512, "D": 64, "commitment_cost": 0.25},
+    "vq_vae_v1.1": {"K": 512, "D": 64, "commitment_cost": 1.0},
+    "vq_vae_v1.2": {"K": 1024, "D": 64, "commitment_cost": 0.25},
+    "vq_vae_v1.3": {"K": 256, "D": 64, "commitment_cost": 0.25},
+    "vq_vae_v1.4": {"K": 512, "D": 128, "commitment_cost": 0.25},
+    "vq_vae_v1.5": {"K": 512, "D": 32, "commitment_cost": 0.25},
 }
 
 transform = data.image2tensor_resize(image_size)
@@ -161,17 +193,29 @@ print(caption)
 
 bases = bases.to(device)
 fusees = fusees.to(device)
-for model_name, latent_dim in model_config.items():
+for model_name, model_parameters in model_config.items():
     # Load Model
     model_path = os.path.join(model_prefix, f"{model_name}/model.pt")
+    temp_num_layers = num_layers
 
-    model_type = "vae" if "vae" in model_name else "autoencoder"
+    model_type = "autoencoder"
+    if "dual_input" in model_name:
+        if "vae" in model_name:
+            model_type = "dual_input_vae"
+        else:
+            model_type = "dual_input_autoencoder"
+    elif "vq_vae" in model_name:
+        model_type = "vq_vae"
+        temp_num_layers = 2
+    elif "vae" in model_name:
+        model_type = "vae"
+
     model = load_model(
         model_type,
         max_filters,
-        num_layers,
+        temp_num_layers,
         image_size,
-        latent_dim,
+        model_parameters,
         small_conv,
         model_path,
         device,
@@ -189,6 +233,33 @@ for model_name, latent_dim in model_config.items():
             log_var = (base_log_var * 0.4) + (fusee_log_var * 0.6)
             midpoint_embedding = model.reparameterize(mu, log_var)
             fusions_out = model.decoder(midpoint_embedding)
+        elif model_type == "dual_input_vae": 
+            bases_out, _, _ = model(bases, bases)
+            fusees_out, _, _ = model(fusees, fusees)
+            fusions_out, _, _ = model(bases, fusees)
+        elif model_type == "dual_input_autoencoder": 
+            bases_out = model(bases, bases)
+            fusees_out = model(fusees, fusees)
+            fusions_out = model(bases, fusees)
+        elif model_type == "vq_vae":
+            # Get Model Outputs
+            _, bases_out, _, _ = model(bases)
+            _, fusees_out, _, _ = model(fusees)
+            # Get Fusion Outputs
+            base_embedding = model.encoder(bases)
+            fusee_embedding = model.encoder(fusees)
+
+            # # Version 1
+            # midpoint_embedding = (base_embedding * 0.4) + (fusee_embedding * 0.6)
+            # _, quantized, _, _ = model.vq_vae(midpoint_embedding)
+            # fusions_out = model.decoder(quantized)
+
+            # Version 2
+            _, base_quantized, _, _ = model.vq_vae(base_embedding)
+            _, fusee_quantized, _, _ = model.vq_vae(fusee_embedding)
+            midpoint_quantized = (base_quantized * 0.4) + (fusee_quantized * 0.6)
+            fusions_out = model.decoder(midpoint_quantized)
+
         else:
             # Get Model Outputs
             bases_out = model(bases)

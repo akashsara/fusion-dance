@@ -964,7 +964,21 @@ class VectorQuantizerEMA(nn.Module):
         perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10)))
 
         # convert quantized from BHWC -> BCHW
-        return loss, quantized.permute(0, 3, 1, 2).contiguous(), perplexity, encodings
+        return (
+            loss,
+            quantized.permute(0, 3, 1, 2).contiguous(),
+            perplexity,
+            encoding_indices,
+        )
+
+    def quantize_encoding_indices(self, encoding_indices, target_shape, device):
+        # For use in inference/fusion generation
+        encodings = torch.zeros(
+            encoding_indices.shape[0], self._num_embeddings, device=device
+        )
+        encodings.scatter_(1, encoding_indices, 1)
+        quantized = torch.matmul(encodings, self._embedding.weight).view(target_shape)
+        return quantized.permute(0, 3, 1, 2).contiguous()
 
 
 class VQVAE(nn.Module):
@@ -1081,6 +1095,10 @@ class VQVAE(nn.Module):
         # Decoder
         reconstructed = self.decoder(quantized)
         return loss, reconstructed, perplexity, encodings
+
+    def quantize_and_decode(self, x, target_shape, device):
+        quantized = self.vq_vae.quantize_encoding_indices(x, target_shape, device)
+        return self.decoder(quantized)
 
 
 def get_freezable_layers(model):

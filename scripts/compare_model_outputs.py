@@ -20,6 +20,10 @@ def pick_images(dir, num_images=16, max_tries=10000):
             break
         selected = np.random.choice(all_images)
         id_ = selected.split("_")[0]
+        # Ignore Fusion Images
+        if '_' not in selected:
+            continue
+        # Ignore Pokemon Already Selected
         if id_ in unique_images:
             continue
         selected_images.append(selected)
@@ -27,7 +31,7 @@ def pick_images(dir, num_images=16, max_tries=10000):
     return selected_images
 
 
-def get_images(dir, images_to_load):
+def get_images(dir, images_to_load, fusion_dir=None):
     """
     Loads the images from the given directory.
     """
@@ -63,28 +67,18 @@ def make_image_grid(images, title):
 
 base_dir = "data\\final\\standard\\test"
 output_dir = "data\\"
-model_prefix = f"outputs\\"
+model_prefix = f"outputs\\tbd\\"
 num_images = 16
 model_list = [
-    "convolutional_vae_v6",
-    "convolutional_vae_v12",
-    "convolutional_vae_v12.1",
-    "convolutional_vae_v12.2",
-    "convolutional_vae_v12.3",
-    "convolutional_vae_v12.4",
-    "convolutional_vae_v12.5",
-    "convolutional_vae_v12.6",
-    "convolutional_vae_v12.7",
-    "convolutional_vae_v15",
-    "convolutional_vae_v15.1",
-    "convolutional_vae_v15.2",
-    "convolutional_vae_v15.3",
-    "convolutional_vae_v15.4",
-    "convolutional_vae_v15.5",
-    "convolutional_vae_v15.6",
+    "vq_vae_v1",
+    "vq_vae_v1.1",
+    "vq_vae_v1.2",
+    "vq_vae_v1.3",
+    "vq_vae_v1.4",
+    "vq_vae_v1.5",
 ]
 
-images_to_load = pick_images(base_dir, num_images)
+images_to_load = pick_images(os.path.join(model_prefix, model_list[0], "generated"), num_images)
 
 caption = "base"
 images = get_images(base_dir, images_to_load)
