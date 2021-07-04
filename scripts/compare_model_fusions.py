@@ -11,6 +11,7 @@ sys.path.append("./")
 import models
 from utils import data, graphics
 
+
 def pick_images(dir, num_images=8, max_tries=10000):
     """
     Picks num_images sprites from the dataset such that no image appears twice.
@@ -166,6 +167,7 @@ num_layers = 4
 max_filters = 512
 image_size = 64
 small_conv = True  # To use the 1x1 convolution layer
+vq_vae_fusion_version = 3
 
 # model_name: latent_dim
 model_config = {
@@ -233,11 +235,11 @@ for model_name, model_parameters in model_config.items():
             log_var = (base_log_var * 0.4) + (fusee_log_var * 0.6)
             midpoint_embedding = model.reparameterize(mu, log_var)
             fusions_out = model.decoder(midpoint_embedding)
-        elif model_type == "dual_input_vae": 
+        elif model_type == "dual_input_vae":
             bases_out, _, _ = model(bases, bases)
             fusees_out, _, _ = model(fusees, fusees)
             fusions_out, _, _ = model(bases, fusees)
-        elif model_type == "dual_input_autoencoder": 
+        elif model_type == "dual_input_autoencoder":
             bases_out = model(bases, bases)
             fusees_out = model(fusees, fusees)
             fusions_out = model(bases, fusees)
@@ -249,16 +251,31 @@ for model_name, model_parameters in model_config.items():
             base_embedding = model.encoder(bases)
             fusee_embedding = model.encoder(fusees)
 
-            # # Version 1
-            # midpoint_embedding = (base_embedding * 0.4) + (fusee_embedding * 0.6)
-            # _, quantized, _, _ = model.vq_vae(midpoint_embedding)
-            # fusions_out = model.decoder(quantized)
-
-            # Version 2
-            _, base_quantized, _, _ = model.vq_vae(base_embedding)
-            _, fusee_quantized, _, _ = model.vq_vae(fusee_embedding)
-            midpoint_quantized = (base_quantized * 0.4) + (fusee_quantized * 0.6)
-            fusions_out = model.decoder(midpoint_quantized)
+            if vq_vae_fusion_version == 1:
+                # Version 1
+                midpoint_embedding = (base_embedding * 0.4) + (fusee_embedding * 0.6)
+                _, quantized, _, _ = model.vq_vae(midpoint_embedding)
+                fusions_out = model.decoder(quantized)
+            elif vq_vae_fusion_version == 2:
+                # Version 2
+                _, base_quantized, _, _ = model.vq_vae(base_embedding)
+                _, fusee_quantized, _, _ = model.vq_vae(fusee_embedding)
+                midpoint_quantized = (base_quantized * 0.4) + (fusee_quantized * 0.6)
+                fusions_out = model.decoder(midpoint_quantized)
+            elif vq_vae_fusion_version == 3:
+                # Version 3
+                _, _, _, base_encoding_indices = model.vq_vae(base_embedding)
+                _, _, _, fusee_encoding_indices = model.vq_vae(fusee_embedding)
+                fused = torch.zeros_like(base_encoding_indices)
+                for i, _ in enumerate(fused):
+                    if torch.rand(1) < 0.5:
+                        fused[i] = base_encoding_indices[i]
+                    else:
+                        fused[i] = fusee_encoding_indices[i]
+                height = np.sqrt(fused.shape[0] / bases.shape[0]).astype(np.int32)
+                width = height
+                target_shape = (bases.shape[0], height, width, model_parameters["D"])
+                fusions_out = model.quantize_and_decode(fused, target_shape, device)
 
         else:
             # Get Model Outputs
