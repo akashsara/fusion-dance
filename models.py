@@ -992,6 +992,8 @@ class VQVAE(nn.Module):
         input_image_dimensions=96,
         small_conv=False,
         embedding_dim=64,
+        max_filters=512,
+        use_max_filters=False,
         num_embeddings=512,
         commitment_cost=0.25,
         decay=0.99,
@@ -999,8 +1001,10 @@ class VQVAE(nn.Module):
         super(VQVAE, self).__init__()
         if small_conv:
             num_layers += 1
+        if not use_max_filters:
+            max_filters = embedding_dim
         channel_sizes = self.calculate_channel_sizes(
-            image_channels, embedding_dim, num_layers
+            image_channels, max_filters, num_layers
         )
 
         # Encoder
@@ -1034,6 +1038,18 @@ class VQVAE(nn.Module):
             encoder_layers.append(nn.BatchNorm2d(out_channels))
             # ReLU
             encoder_layers.append(nn.ReLU())
+
+        # Final Conv Layer to ensure we have embedding_dim channels
+        if use_max_filters:
+            encoder_layers.append(
+                nn.Conv2d(
+                    in_channels=out_channels,
+                    out_channels=embedding_dim,
+                    kernel_size=1,
+                    stride=1,
+                    padding=0,
+                )
+            )
         # Make Encoder
         self.encoder = nn.Sequential(*encoder_layers)
 
@@ -1044,6 +1060,17 @@ class VQVAE(nn.Module):
 
         # Decoder
         decoder_layers = nn.ModuleList()
+        # Initial Conv Layer to change the channels back to the required number
+        if use_max_filters:
+            decoder_layers.append(
+                nn.Conv2d(
+                    in_channels=embedding_dim,
+                    out_channels=out_channels,
+                    kernel_size=1,
+                    stride=1,
+                    padding=0,
+                )
+            )
         # Decoder Convolutions
         for i, (out_channels, in_channels) in enumerate(channel_sizes[::-1]):
             if small_conv and i == num_layers - 1:
