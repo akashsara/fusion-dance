@@ -30,6 +30,8 @@ num_layers = 2
 num_embeddings = 512
 embedding_dim = 64
 commitment_cost = 0.25
+use_max_filters = False
+max_filters = 512
 image_size = 64
 use_noise_images = True
 small_conv = True  # To use the 1x1 convolution layer
@@ -121,6 +123,8 @@ model = models.VQVAE(
     embedding_dim=embedding_dim,
     num_embeddings=num_embeddings,
     commitment_cost=commitment_cost,
+    use_max_filters=use_max_filters,
+    max_filters=max_filters,
 )
 print(model)
 model.to(device)
