@@ -140,6 +140,8 @@ teacher_model = models.ConvolutionalAE(
     latent_dim=teacher_latent_dim,
     small_conv=teacher_small_conv,
 )
+teacher_model.load_state_dict(torch.load(teacher_model_path, map_location=device))
+
 model.to(device)
 teacher_model.to(device)
 
