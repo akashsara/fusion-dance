@@ -1128,6 +1128,53 @@ class VQVAE(nn.Module):
         return self.decoder(quantized)
 
 
+class CNNPrior(nn.Module):
+    def __init__(self, input_channels, output_channels, input_dim, output_dim):
+        super(CNNPrior, self).__init__()
+        num_layers = self.get_number_of_layers(input_dim, output_dim)
+        channel_sizes = self.calculate_channel_sizes(
+            input_channels, output_channels, num_layers
+        )
+        layers = nn.ModuleList()
+
+        for i, (in_channels, out_channels) in enumerate(channel_sizes):
+            if i == 0 or i == len(channel_sizes) - 1:
+                kernel_size = 1
+                stride = 1
+            else:
+                kernel_size = 2
+                stride = 2
+            layers.append(
+                nn.Conv2d(
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    kernel_size=kernel_size,
+                    stride=stride,
+                )
+            )
+            if i != len(channel_sizes) - 1:
+                layers.append(nn.ReLU(True))
+        self.model = nn.Sequential(*layers)
+
+    def get_number_of_layers(self, input_dim, output_dim):
+        num_layers = 2
+        while input_dim != output_dim:
+            output_dim *= 2
+            num_layers += 1
+        return num_layers
+
+    def calculate_channel_sizes(self, image_channels, max_filters, num_layers):
+        channel_sizes = [(image_channels, max_filters // np.power(2, num_layers - 1))]
+        for i in range(1, num_layers):
+            prev = channel_sizes[-1][-1]
+            new = prev * 2
+            channel_sizes.append((prev, new))
+        return channel_sizes
+
+    def forward(self, x):
+        return self.model(x)
+
+
 def get_freezable_layers(model):
     # Freeze Conv Layers
     freezable_layers = []
