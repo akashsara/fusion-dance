@@ -133,6 +133,7 @@ vq_vae = models.VQVAE(
 )
 vq_vae.load_state_dict(torch.load(vq_vae_model_path, map_location=device))
 vq_vae.eval()
+vq_vae.to(device)
 
 # Create Model
 model = models.CNNPrior(
