@@ -1,3 +1,7 @@
+# TODO: This has some issues. Needs fixing. 
+# Work on the MNIST version first. 
+# Once you get that working, come back here!
+ 
 import os
 
 import matplotlib.pyplot as plt
