@@ -70,12 +70,11 @@ output_dir = "data\\"
 model_prefix = f"outputs\\tbd\\"
 num_images = 16
 model_list = [
-    "vq_vae_v1",
-    "vq_vae_v1.1",
-    "vq_vae_v1.2",
-    "vq_vae_v1.3",
-    "vq_vae_v1.4",
     "vq_vae_v1.5",
+    "vq_vae_v2.1",
+    "vq_vae_v3.6",
+    "vq_vae_v4.3",
+    "vq_vae_v5.10",
 ]
 
 images_to_load = pick_images(os.path.join(model_prefix, model_list[0], "generated"), num_images)

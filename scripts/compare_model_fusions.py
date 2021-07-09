@@ -37,15 +37,15 @@ def pick_images(dir, num_images=8, max_tries=10000):
         # To ensure color/sprite matches fusion
         filenames = [
             f"{id_}_base_bw_whiteBG_0rotation.png",
-            f"{id_}_base_bw_blackBG_0rotation.png",
             f"{id_}_base_female_bw_whiteBG_0rotation.png",
-            f"{id_}_base_female_bw_blackBG_0rotation.png",
         ]
         if choice not in filenames:
             for filename in filenames:
                 if filename in all_images:
                     choice = filename
                     break
+        if choice not in filenames:
+            print("MEEP MORP")
         selected.append(choice)
         unique_ids.append(id_)
     selected = [list(x) for x in np.array(selected).reshape(-1, 2)]
@@ -157,7 +157,7 @@ def load_model(
 gpu = torch.cuda.is_available()
 device = torch.device("cuda" if gpu else "cpu")
 
-base_dir = "data\\original\\original_data"
+base_dir = "data\\final\\standard\\test"
 base_fusion_dir = "data\\backup\\japeal_renamed"
 output_dir = "data"
 model_prefix = f"outputs\\tbd\\"
