@@ -24,21 +24,24 @@ epochs = 10
 batch_size = 64
 num_dataloader_workers = 0
 
-experiment_name = f"fusion_cnn_prior_v1"
+experiment_name = f"fusion_cnn_prior_v3"
 
-vq_vae_experiment_name = f"vq_vae_v3.6"
-vq_vae_num_layers = 1
+mode = "continuous"
+vq_vae_experiment_name = f"vq_vae_v5.10"
+vq_vae_num_layers = 0
 vq_vae_max_filters = 512
-vq_vae_use_max_filters = False
-vq_vae_num_embeddings = 128
+vq_vae_use_max_filters = True
+vq_vae_num_embeddings = 256
 vq_vae_embedding_dim = 32
 vq_vae_commitment_cost = 0.25
 vq_vae_small_conv = True  # To use the 1x1 convolution layer
 
 image_size = 64
 use_noise_images = True
-input_channels = 6  # Two Images
-output_dim = image_size // np.power(2, vq_vae_num_layers)
+prior_input_channels = 6  # Two Images
+prior_output_channels = vq_vae_embedding_dim # vq_vae_num_embeddings
+prior_input_dim = image_size
+prior_output_dim = prior_input_dim // np.power(2, vq_vae_num_layers)
 
 data_prefix = "data\\final\\standard"
 fusion_data_prefix = "data\\final\\fusions"
@@ -137,15 +140,18 @@ vq_vae.to(device)
 
 # Create Model
 model = models.CNNPrior(
-    input_channels=input_channels,
-    output_channels=vq_vae_num_embeddings,
-    input_dim=image_size,
-    output_dim=output_dim,
+    input_channels=prior_input_channels,
+    output_channels=prior_output_channels,
+    input_dim=prior_input_dim,
+    output_dim=prior_output_dim,
 )
 model.to(device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-criterion = torch.nn.CrossEntropyLoss()
+if mode == "discrete":
+    criterion = torch.nn.CrossEntropyLoss()
+elif mode == "continuous":
+    criterion = torch.nn.MSELoss()
 
 ################################################################################
 ################################### Training ###################################
@@ -179,8 +185,21 @@ for epoch in range(epochs):
         with torch.no_grad():
             # Get Encodings from vq_vae
             _, _, _, encodings = vq_vae(fusion)
-            # Reshape encodings
-            y = encodings.reshape(current_batch_size, output_dim, output_dim)
+            if mode == "discrete":
+                # Reshape encodings
+                y = encodings.reshape(
+                    current_batch_size, prior_output_dim, prior_output_dim
+                )
+            elif mode == "continuous":
+                target_shape = (
+                    current_batch_size,
+                    prior_output_dim,
+                    prior_output_dim,
+                    vq_vae_embedding_dim,
+                )
+                y = vq_vae.vq_vae.quantize_encoding_indices(
+                    encodings, target_shape, device
+                )
 
         # Run our model & get outputs
         y_hat = model(torch.cat([base, fusee], dim=1))
@@ -194,11 +213,12 @@ for epoch in range(epochs):
         # Update our optimizer parameters
         optimizer.step()
 
-        # Calculate Accuracy
-        y_hat = y_hat.argmax(dim=1)
-        epoch_train_accuracy.extend(
-            (y == y_hat).detach().flatten(start_dim=1).float().mean(dim=1).cpu()
-        )
+        if mode == "discrete":
+            # Calculate Accuracy
+            y_hat = y_hat.argmax(dim=1)
+            epoch_train_accuracy.extend(
+                (y == y_hat).detach().flatten(start_dim=1).float().mean(dim=1).cpu()
+            )
 
         # Add the batch's loss to the total loss for the epoch
         train_loss += batch_loss.item()
@@ -216,8 +236,21 @@ for epoch in range(epochs):
 
             # Get Encodings from vq_vae
             _, _, _, encodings = vq_vae(fusion)
-            # Reshape encodings
-            y = encodings.reshape(current_batch_size, output_dim, output_dim)
+            if mode == "discrete":
+                # Reshape encodings
+                y = encodings.reshape(
+                    current_batch_size, prior_output_dim, prior_output_dim
+                )
+            elif mode == "continuous":
+                target_shape = (
+                    current_batch_size,
+                    prior_output_dim,
+                    prior_output_dim,
+                    vq_vae_embedding_dim,
+                )
+                y = vq_vae.vq_vae.quantize_encoding_indices(
+                    encodings, target_shape, device
+                )
 
             # Run our model & get outputs
             y_hat = model(torch.cat([base, fusee], dim=1))
@@ -225,11 +258,12 @@ for epoch in range(epochs):
             # Calculate reconstruction loss
             batch_loss = criterion(y_hat, y)
 
-            # Calculate Accuracy
-            y_hat = y_hat.argmax(dim=1)
-            epoch_val_accuracy.extend(
-                (y == y_hat).detach().flatten(start_dim=1).float().mean(dim=1).cpu()
-            )
+            if mode == "discrete":
+                # Calculate Accuracy
+                y_hat = y_hat.argmax(dim=1)
+                epoch_val_accuracy.extend(
+                    (y == y_hat).detach().flatten(start_dim=1).float().mean(dim=1).cpu()
+                )
 
             # Add the batch's loss to the total loss for the epoch
             val_loss += batch_loss.item()
@@ -241,29 +275,37 @@ for epoch in range(epochs):
     val_loss = val_loss / len(val_dataloader)
     all_val_loss.append(val_loss)
 
-    # Compute the average accuracy for this epoch
-    epoch_train_accuracy = torch.stack(epoch_train_accuracy).mean()
-    train_accuracy.append(epoch_train_accuracy)
-    epoch_val_accuracy = torch.stack(epoch_val_accuracy).mean()
-    val_accuracy.append(epoch_val_accuracy)
-
     # Print Metrics
     print(
         f"\nEpoch: {epoch+1}/{epochs}:\
         \nTrain Loss = {train_loss}\
-        \nTrain Accuracy = {epoch_train_accuracy}\
-        \nVal Loss = {val_loss}\
-        \nVal Accuracy = {epoch_val_accuracy}"
+        \nVal Loss = {val_loss}"
     )
+
+    if mode == "discrete":
+        # Compute the average accuracy for this epoch
+        epoch_train_accuracy = torch.stack(epoch_train_accuracy).mean()
+        train_accuracy.append(epoch_train_accuracy)
+        epoch_val_accuracy = torch.stack(epoch_val_accuracy).mean()
+        val_accuracy.append(epoch_val_accuracy)
+        print(
+            f"\nTrain Accuracy = {epoch_train_accuracy}\
+            \nVal Accuracy = {epoch_val_accuracy}"
+        )
 
 ################################################################################
 ################################## Save & Test #################################
 ################################################################################
 # Generate Loss Graph
 graphics.draw_loss(all_train_loss, all_val_loss, loss_output_path, mode="autoencoder")
-graphics.plot_and_save_loss(
-    train_accuracy, "Train Accuracy", val_accuracy, "Val Accuracy", accuracy_output_path
-)
+if mode == "discrete":
+    graphics.plot_and_save_loss(
+        train_accuracy,
+        "Train Accuracy",
+        val_accuracy,
+        "Val Accuracy",
+        accuracy_output_path,
+    )
 
 # Save Model
 torch.save(model.state_dict(), model_output_path)
@@ -273,6 +315,7 @@ model.eval()
 # Evaluate on Test Images
 # Testing Loop - Standard
 all_image_accuracy = []
+all_mse = []
 with torch.no_grad():
     for iteration, batch in enumerate(tqdm(test_dataloader)):
         # Move batch to device
@@ -284,18 +327,37 @@ with torch.no_grad():
 
         # Get Encodings from vq_vae
         _, _, _, encodings = vq_vae(fusion)
-        # Reshape encodings
-        y = encodings.reshape(current_batch_size, output_dim, output_dim)
+        if mode == "discrete":
+            # Reshape encodings
+            y = encodings.reshape(
+                current_batch_size, prior_output_dim, prior_output_dim
+            )
+        elif mode == "continuous":
+            target_shape = (
+                current_batch_size,
+                prior_output_dim,
+                prior_output_dim,
+                vq_vae_embedding_dim,
+            )
+            y = vq_vae.vq_vae.quantize_encoding_indices(encodings, target_shape, device)
 
         # Run our model & get outputs
         y_hat = model(torch.cat([base, fusee], dim=1))
 
         # Calculate Metrics
-        y_hat = y_hat.argmax(dim=1)
-        all_image_accuracy.extend(
-            (y == y_hat).detach().flatten(start_dim=1).float().mean(dim=1).cpu()
-        )
+        if mode == "discrete":
+            y_hat = y_hat.argmax(dim=1)
+            all_image_accuracy.extend(
+                (y == y_hat).detach().flatten(start_dim=1).float().mean(dim=1).cpu()
+            )
+        elif mode == "continuous":
+            mse = criterion(y_hat, y)
+            all_mse.append(mse.detach().cpu().numpy())
 
 # Print Metrics
-test_accuracy = torch.stack(all_image_accuracy).mean()
-print(f"Test Accuracy = {test_accuracy}")
+if mode == "discrete":
+    test_accuracy = torch.stack(all_image_accuracy).mean()
+    print(f"\nTest Accuracy = {test_accuracy}")
+elif mode == "continuous":
+    mse = np.asarray(all_mse).mean()
+    print(f"\nMSE = {mse}")
