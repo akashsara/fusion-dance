@@ -94,13 +94,30 @@ def get_fusion_images(dir, image_size, transform, images_to_load):
     return torch.stack(images)
 
 
+def make_prediction(
+    vq_vae, prior, to_predict, prior_output_dim, vq_vae_embedding_dim, device, mode
+):
+    encoding = prior(to_predict)
+    if mode == "discrete":
+        encoding = encoding.argmax(dim=1).flatten(start_dim=1).view(-1, 1)
+        target_shape = (
+            to_predict.shape[0],
+            prior_output_dim,
+            prior_output_dim,
+            vq_vae_embedding_dim,
+        )
+        return vq_vae.quantize_and_decode(encoding, target_shape, device)
+    elif mode == "continuous" or "continuous-final_image":
+        return model.decoder(encoding)
+
+
 if __name__ == "__main__":
     ## Config
     data_dir = "data\\final\\standard\\train"
     fusion_dir = "data\\backup\\japeal_renamed"
-    model_prefix = f"outputs\\tbd\\"
+    model_prefix = f"outputs\\"
     output_dir = f"data"
-    identifier = "train" # Prepended to filename
+    identifier = "train"  # Prepended to filename
 
     batch_size = 64
     image_size = 64
@@ -116,9 +133,12 @@ if __name__ == "__main__":
     vq_vae_commitment_cost = 0.25
     vq_vae_small_conv = True  # To use the 1x1 convolution layer
 
+    mode = "discrete"
     prior_model_name = f"fusion_cnn_prior_v2"
     prior_input_channels = 6  # Two Images
-    prior_output_channels = vq_vae_num_embeddings
+    prior_output_channels = (
+        vq_vae_num_embeddings if mode == "discrete" else vq_vae_embedding_dim
+    )
     prior_input_dim = image_size
     prior_output_dim = prior_input_dim // np.power(2, vq_vae_num_layers)
 
@@ -147,8 +167,8 @@ if __name__ == "__main__":
     ## Load Prior
     prior = models.CNNPrior(
         input_channels=prior_input_channels,
-        output_channels=vq_vae_num_embeddings,
-        input_dim=image_size,
+        output_channels=prior_output_channels,
+        input_dim=prior_input_dim,
         output_dim=prior_output_dim,
     )
     model_path = os.path.join(model_prefix, prior_model_name, "model.pt")
@@ -193,28 +213,24 @@ if __name__ == "__main__":
     with torch.no_grad():
         # Bases
         predict = torch.cat([bases, bases], dim=1)
-        encoding = prior(predict).argmax(dim=1).flatten(start_dim=1).view(-1, 1)
-        height = width = np.sqrt(encoding.shape[0] / predict.shape[0]).astype(np.int32)
-        target_shape = (predict.shape[0], height, width, vq_vae_embedding_dim)
-        bases_final = model.quantize_and_decode(encoding, target_shape, device)
+        bases_final = make_prediction(
+            model, prior, predict, prior_output_dim, vq_vae_embedding_dim, device, mode
+        )
         # Fusees
         predict = torch.cat([fusees, fusees], dim=1)
-        encoding = prior(predict).argmax(dim=1).flatten(start_dim=1).view(-1, 1)
-        height = width = np.sqrt(encoding.shape[0] / predict.shape[0]).astype(np.int32)
-        target_shape = (predict.shape[0], height, width, vq_vae_embedding_dim)
-        fusees_final = model.quantize_and_decode(encoding, target_shape, device)
+        fusees_final = make_prediction(
+            model, prior, predict, prior_output_dim, vq_vae_embedding_dim, device, mode
+        )
         # Fusions - Combination
         predict = torch.cat([bases, fusees], dim=1)
-        encoding = prior(predict).argmax(dim=1).flatten(start_dim=1).view(-1, 1)
-        height = width = np.sqrt(encoding.shape[0] / predict.shape[0]).astype(np.int32)
-        target_shape = (predict.shape[0], height, width, vq_vae_embedding_dim)
-        fusions_final = model.quantize_and_decode(encoding, target_shape, device)
+        fusions_final = make_prediction(
+            model, prior, predict, prior_output_dim, vq_vae_embedding_dim, device, mode
+        )
         # Fusions - Reconstruction
         predict = torch.cat([fusions, fusions], dim=1)
-        encoding = prior(predict).argmax(dim=1).flatten(start_dim=1).view(-1, 1)
-        height = width = np.sqrt(encoding.shape[0] / predict.shape[0]).astype(np.int32)
-        target_shape = (predict.shape[0], height, width, vq_vae_embedding_dim)
-        fusions_recon = model.quantize_and_decode(encoding, target_shape, device)
+        fusions_recon = make_prediction(
+            model, prior, predict, prior_output_dim, vq_vae_embedding_dim, device, mode
+        )
     # Plot Reconstructed Fusion Version
     caption = "Prior Reconstructions"
     final_sample = torch.stack(
