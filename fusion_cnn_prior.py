@@ -24,9 +24,9 @@ epochs = 10
 batch_size = 64
 num_dataloader_workers = 0
 
-experiment_name = f"fusion_cnn_prior_v2"
+experiment_name = f"fusion_cnn_prior_v2.2"
 
-mode = "discrete"
+mode = "continuous-final_image"
 vq_vae_experiment_name = f"vq_vae_v5.10"
 vq_vae_num_layers = 0
 vq_vae_max_filters = 512
@@ -39,14 +39,16 @@ vq_vae_small_conv = True  # To use the 1x1 convolution layer
 image_size = 64
 use_noise_images = True
 prior_input_channels = 6  # Two Images
-prior_output_channels = vq_vae_num_embeddings if mode == "discrete" else vq_vae_embedding_dim
+prior_output_channels = (
+    vq_vae_num_embeddings if mode == "discrete" else vq_vae_embedding_dim
+)
 prior_input_dim = image_size
 prior_output_dim = prior_input_dim // np.power(2, vq_vae_num_layers)
 
 data_prefix = "data\\final\\standard"
 fusion_data_prefix = "data\\final\\fusions"
 output_prefix = f"data\\{experiment_name}"
-vq_vae_model_prefix = f"outputs\\tbd\\{vq_vae_experiment_name}"
+vq_vae_model_prefix = f"outputs\\{vq_vae_experiment_name}"
 
 vq_vae_model_path = os.path.join(vq_vae_model_prefix, "model.pt")
 
@@ -150,7 +152,7 @@ model.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 if mode == "discrete":
     criterion = torch.nn.CrossEntropyLoss()
-elif mode == "continuous":
+elif mode == "continuous" or mode == "continuous-final_image":
     criterion = torch.nn.MSELoss()
 
 ################################################################################
@@ -200,9 +202,14 @@ for epoch in range(epochs):
                 y = vq_vae.vq_vae.quantize_encoding_indices(
                     encodings, target_shape, device
                 )
+            elif mode == "continuous-final_image":
+                y = fusion
 
         # Run our model & get outputs
         y_hat = model(torch.cat([base, fusee], dim=1))
+
+        if mode == "continuous-final_image":
+            y_hat = vq_vae.decoder(y_hat)
 
         # Calculate reconstruction loss
         batch_loss = criterion(y_hat, y)
@@ -259,9 +266,14 @@ for epoch in range(epochs):
                 y = vq_vae.vq_vae.quantize_encoding_indices(
                     encodings, target_shape, device
                 )
+            elif mode == "continuous-final_image":
+                y = fusion
 
             # Run our model & get outputs
             y_hat = model(torch.cat([base, fusee], dim=1))
+
+            if mode == "continuous-final_image":
+                y_hat = vq_vae.decoder(y_hat)
 
             # Calculate reconstruction loss
             batch_loss = criterion(y_hat, y)
@@ -313,9 +325,7 @@ for epoch in range(epochs):
         epoch_overall_val_accuracy = torch.stack(
             [x[0] for x in epoch_val_accuracy]
         ).mean()
-        epoch_base_val_accuracy = torch.stack(
-            [x[1] for x in epoch_val_accuracy]
-        ).mean()
+        epoch_base_val_accuracy = torch.stack([x[1] for x in epoch_val_accuracy]).mean()
         epoch_fusion_val_accuracy = torch.stack(
             [x[2] for x in epoch_val_accuracy]
         ).mean()
@@ -367,8 +377,7 @@ model.eval()
 
 # Evaluate on Test Images
 # Testing Loop - Standard
-all_image_accuracy = []
-all_mse = []
+all_metrics = []
 with torch.no_grad():
     for iteration, batch in enumerate(tqdm(test_dataloader)):
         # Move batch to device
@@ -393,9 +402,14 @@ with torch.no_grad():
                 vq_vae_embedding_dim,
             )
             y = vq_vae.vq_vae.quantize_encoding_indices(encodings, target_shape, device)
+        elif mode == "continuous-final_image":
+            y = fusion
 
         # Run our model & get outputs
         y_hat = model(torch.cat([base, fusee], dim=1))
+
+        if mode == "continuous-final_image":
+            y_hat = vq_vae.decoder(y_hat)
 
         # Calculate Metrics
         if mode == "discrete":
@@ -409,18 +423,16 @@ with torch.no_grad():
             fusion_accuracy = torch.masked_select(
                 overall_accuracy, torch.logical_not(mask)
             )
-            all_image_accuracy.append(
-                (overall_accuracy, base_accuracy, fusion_accuracy)
-            )
-        elif mode == "continuous":
-            mse = criterion(y_hat, y)
-            all_mse.append(mse.detach().cpu().numpy())
+            all_metrics.append((overall_accuracy, base_accuracy, fusion_accuracy))
+        elif mode == "continuous" or mode == "continuous-final_image":
+            mse = criterion(y_hat, y).detach().cpu().numpy()
+            all_metrics.append(mse)
 
 # Print Metrics
 if mode == "discrete":
     for i, accuracy_type in enumerate(["Overall", "Base", "Fusion"]):
-        test_accuracy = torch.cat([x[i] for x in all_image_accuracy]).mean()
+        test_accuracy = torch.cat([x[i] for x in all_metrics]).mean()
         print(f"Test {accuracy_type} Accuracy = {test_accuracy}")
-elif mode == "continuous":
-    mse = np.asarray(all_mse).mean()
+elif mode == "continuous" or mode == "continuous-final_image":
+    mse = np.asarray(all_metrics).mean()
     print(f"\nMSE = {mse}")
