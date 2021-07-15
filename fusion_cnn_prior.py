@@ -442,7 +442,9 @@ with torch.no_grad():
             y_hat = vq_vae.decoder(y_hat)
 
         # Calculate MSE
-        overall_mse = mse_loss(y_hat, fusion).detach().cpu()
+        overall_mse = (
+            mse_loss(y_hat, fusion).flatten(start_dim=1).mean(dim=1).detach().cpu()
+        )
         base_mse = torch.masked_select(overall_mse, mask)
         fusion_mse = torch.masked_select(overall_mse, torch.logical_not(mask))
         all_mse.append((overall_mse, base_mse, fusion_mse))

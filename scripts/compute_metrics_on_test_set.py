@@ -1,4 +1,5 @@
 import os
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,6 +8,7 @@ import torch.nn as nn
 import pytorch_msssim
 from tqdm import tqdm
 
+sys.path.append("./")
 import utils.data as data
 import utils.graphics as graphics
 import utils.loss as loss
@@ -26,7 +28,7 @@ num_dataloader_workers = 0
 
 experiment_name = f"fusion_cnn_prior_v2.2"
 
-mode = "discrete"
+mode = "continuous-final_image"
 vq_vae_experiment_name = f"vq_vae_v5.10"
 vq_vae_num_layers = 0
 vq_vae_max_filters = 512
@@ -195,7 +197,9 @@ with torch.no_grad():
             y_hat = vq_vae.decoder(y_hat)
 
         # Calculate MSE
-        overall_mse = mse_loss(y_hat, fusion).detach().cpu()
+        overall_mse = (
+            mse_loss(y_hat, fusion).flatten(start_dim=1).mean(dim=1).detach().cpu()
+        )
         base_mse = torch.masked_select(overall_mse, mask)
         fusion_mse = torch.masked_select(overall_mse, torch.logical_not(mask))
         all_mse.append((overall_mse, base_mse, fusion_mse))
