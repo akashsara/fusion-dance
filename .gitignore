@@ -1,8 +1,8 @@
 .ipynb_checkpoints/
 .vscode/
 __pycache__/
-env/
-data/*
-!data/original_data.zip
-outputs/
-fusions/*/
+/env/
+/data/*
+!/data/Pokemon/original_data.zip
+/outputs/
+/fusions/*/
