@@ -62,7 +62,6 @@ fusion_test_data_folder = os.path.join(fusion_data_prefix, "test")
 
 output_dir = output_prefix
 loss_output_path = os.path.join(output_prefix, "loss.jpg")
-accuracy_output_path = os.path.join(output_prefix, "accuracy.jpg")
 model_output_path = os.path.join(output_prefix, "model.pt")
 ################################################################################
 ##################################### Setup ####################################
@@ -163,17 +162,9 @@ elif mode == "continuous" or mode == "continuous-final_image":
 all_train_loss = []
 all_val_loss = []
 
-if mode == "discrete":
-    all_train_accuracy = []
-    all_val_accuracy = []
-
 for epoch in range(epochs):
     train_loss = 0
     val_loss = 0
-    epoch_metrics = {}
-    for epoch_mode in ["train", "val"]:
-        for evaluation_type in ["overall", "base", "fusion"]:
-            epoch_metrics[f"{epoch_mode}_{evaluation_type}_accuracy"] = []
 
     # Training Loop
     model.train()
@@ -224,25 +215,6 @@ for epoch in range(epochs):
         # Update our optimizer parameters
         optimizer.step()
 
-        if mode == "discrete":
-            mask = (base == fusee).flatten(start_dim=1).all(dim=1)
-            # Calculate Accuracy
-            overall_accuracy = (
-                (y == y_hat.argmax(dim=1))
-                .detach()
-                .cpu()
-                .flatten(start_dim=1)
-                .float()
-                .mean(dim=1)
-            )
-            base_accuracy = torch.masked_select(overall_accuracy, mask)
-            fusion_accuracy = torch.masked_select(
-                overall_accuracy, torch.logical_not(mask)
-            )
-            epoch_metrics["train_overall_accuracy"].append(overall_accuracy)
-            epoch_metrics["train_base_accuracy"].append(base_accuracy)
-            epoch_metrics["train_fusion_accuracy"].append(fusion_accuracy)
-
         # Add the batch's loss to the total loss for the epoch
         train_loss += batch_loss.item()
 
@@ -286,25 +258,6 @@ for epoch in range(epochs):
             # Calculate reconstruction loss
             batch_loss = criterion(y_hat, y)
 
-            if mode == "discrete":
-                mask = (base == fusee).flatten(start_dim=1).all(dim=1)
-                # Calculate Accuracy
-                overall_accuracy = (
-                    (y == y_hat.argmax(dim=1))
-                    .detach()
-                    .cpu()
-                    .flatten(start_dim=1)
-                    .float()
-                    .mean(dim=1)
-                )
-                base_accuracy = torch.masked_select(overall_accuracy, mask)
-                fusion_accuracy = torch.masked_select(
-                    overall_accuracy, torch.logical_not(mask)
-                )
-                epoch_metrics["val_overall_accuracy"].append(overall_accuracy)
-                epoch_metrics["val_base_accuracy"].append(base_accuracy)
-                epoch_metrics["val_fusion_accuracy"].append(fusion_accuracy)
-
             # Add the batch's loss to the total loss for the epoch
             val_loss += batch_loss.item()
 
@@ -322,53 +275,11 @@ for epoch in range(epochs):
         \nVal Loss = {val_loss}"
     )
 
-    if mode == "discrete":
-        # Compute the average accuracy for this epoch
-        for metric in epoch_metrics:
-            epoch_metrics[metric] = torch.stack(epoch_metrics[metric]).mean()
-        # Store
-        all_train_accuracy.append(
-            (
-                epoch_metrics["train_overall_accuracy"],
-                epoch_metrics["train_base_accuracy"],
-                epoch_metrics["train_fusion_accuracy"],
-            )
-        )
-        all_val_accuracy.append(
-            (
-                epoch_metrics["val_overall_accuracy"],
-                epoch_metrics["val_base_accuracy"],
-                epoch_metrics["val_fusion_accuracy"],
-            )
-        )
-        # Print
-        for metric in [
-            "Train Overall Accuracy",
-            "Train Base Accuracy",
-            "Train Fusion Accuracy",
-            "Val Overall Accuracy",
-            "Val Base Accuracy",
-            "Val Fusion Accuracy",
-        ]:
-            metric_key = metric.replace(" ", "_").lower()
-            print(f"\n{metric} = {epoch_metrics[metric_key]}")
-
 ################################################################################
 ################################## Save & Test #################################
 ################################################################################
 # Generate Loss Graph
 graphics.draw_loss(all_train_loss, all_val_loss, loss_output_path, mode="autoencoder")
-if mode == "discrete":
-    for i, plot_name in enumerate(["Overall", "Base", "Fusion"]):
-        train_values = [x[i] for x in all_train_accuracy]
-        val_values = [x[i] for x in all_val_accuracy]
-        graphics.plot_and_save_loss(
-            train_values,
-            f"Train {plot_name} Accuracy",
-            val_values,
-            f"Val {plot_name} Accuracy",
-            accuracy_output_path,
-        )
 
 # Save Model
 torch.save(model.state_dict(), model_output_path)
@@ -384,8 +295,6 @@ ssim_module = pytorch_msssim.SSIM(
 
 all_mse = []
 all_ssim = []
-if mode == "discrete":
-    all_accuracy = []
 
 with torch.no_grad():
     for iteration, batch in enumerate(tqdm(test_dataloader)):
@@ -418,21 +327,6 @@ with torch.no_grad():
         y_hat = model(torch.cat([base, fusee], dim=1))
 
         mask = (base == fusee).flatten(start_dim=1).all(dim=1)
-        # Calculate Accuracy
-        if mode == "discrete":
-            overall_accuracy = (
-                (y == y_hat.argmax(dim=1))
-                .detach()
-                .cpu()
-                .flatten(start_dim=1)
-                .float()
-                .mean(dim=1)
-            )
-            base_accuracy = torch.masked_select(overall_accuracy, mask)
-            fusion_accuracy = torch.masked_select(
-                overall_accuracy, torch.logical_not(mask)
-            )
-            all_accuracy.append((overall_accuracy, base_accuracy, fusion_accuracy))
 
         # Make y_hat an image
         if mode == "discrete":
@@ -455,17 +349,10 @@ with torch.no_grad():
         fusion_ssim = torch.masked_select(overall_ssim, torch.logical_not(mask))
         all_ssim.append((overall_ssim, base_ssim, fusion_ssim))
 
-
-# Print Metrics
-if mode == "discrete":
-    for i, accuracy_type in enumerate(["Overall", "Base", "Fusion"]):
-        test_accuracy = torch.cat([x[i] for x in all_accuracy]).mean()
-        print(f"Test {accuracy_type} Accuracy = {test_accuracy}")
-
 for i, mse_type in enumerate(["Overall", "Base", "Fusion"]):
     test_mse = torch.cat([x[i] for x in all_mse]).mean()
-    print(f"Test {mse_type} Accuracy = {test_mse}")
+    print(f"Test {mse_type} MSE = {test_mse}")
 
 for i, ssim_type in enumerate(["Overall", "Base", "Fusion"]):
     test_ssim = torch.cat([x[i] for x in all_ssim]).mean()
-    print(f"Test {ssim_type} Accuracy = {test_ssim}")
+    print(f"Test {ssim_type} SSIM = {test_ssim}")

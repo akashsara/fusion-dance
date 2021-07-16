@@ -26,9 +26,9 @@ epochs = 5
 batch_size = 64
 num_dataloader_workers = 0
 
-experiment_name = f"fusion_cnn_prior_v2.2"
+experiment_name = f"fusion_cnn_prior_v2"
 
-mode = "continuous-final_image"
+mode = "discrete"
 vq_vae_experiment_name = f"vq_vae_v5.10"
 vq_vae_num_layers = 0
 vq_vae_max_filters = 512
@@ -66,7 +66,6 @@ fusion_test_data_folder = os.path.join(fusion_data_prefix, "test")
 
 output_dir = output_prefix
 loss_output_path = os.path.join(output_prefix, "loss.jpg")
-accuracy_output_path = os.path.join(output_prefix, "accuracy.jpg")
 model_output_path = os.path.join(output_prefix, "model.pt")
 ################################################################################
 ##################################### Setup ####################################
@@ -139,8 +138,6 @@ ssim_module = pytorch_msssim.SSIM(
 
 all_mse = []
 all_ssim = []
-if mode == "discrete":
-    all_accuracy = []
 
 with torch.no_grad():
     for iteration, batch in enumerate(tqdm(test_dataloader)):
@@ -173,21 +170,6 @@ with torch.no_grad():
         y_hat = model(torch.cat([base, fusee], dim=1))
 
         mask = (base == fusee).flatten(start_dim=1).all(dim=1)
-        # Calculate Accuracy
-        if mode == "discrete":
-            overall_accuracy = (
-                (y == y_hat.argmax(dim=1))
-                .detach()
-                .cpu()
-                .flatten(start_dim=1)
-                .float()
-                .mean(dim=1)
-            )
-            base_accuracy = torch.masked_select(overall_accuracy, mask)
-            fusion_accuracy = torch.masked_select(
-                overall_accuracy, torch.logical_not(mask)
-            )
-            all_accuracy.append((overall_accuracy, base_accuracy, fusion_accuracy))
 
         # Make y_hat an image
         if mode == "discrete":
@@ -210,17 +192,10 @@ with torch.no_grad():
         fusion_ssim = torch.masked_select(overall_ssim, torch.logical_not(mask))
         all_ssim.append((overall_ssim, base_ssim, fusion_ssim))
 
-
-# Print Metrics
-if mode == "discrete":
-    for i, accuracy_type in enumerate(["Overall", "Base", "Fusion"]):
-        test_accuracy = torch.cat([x[i] for x in all_accuracy]).mean()
-        print(f"Test {accuracy_type} Accuracy = {test_accuracy}")
-
 for i, mse_type in enumerate(["Overall", "Base", "Fusion"]):
     test_mse = torch.cat([x[i] for x in all_mse]).mean()
-    print(f"Test {mse_type} Accuracy = {test_mse}")
+    print(f"Test {mse_type} MSE = {test_mse}")
 
 for i, ssim_type in enumerate(["Overall", "Base", "Fusion"]):
     test_ssim = torch.cat([x[i] for x in all_ssim]).mean()
-    print(f"Test {ssim_type} Accuracy = {test_ssim}")
+    print(f"Test {ssim_type} SSIM = {test_ssim}")
