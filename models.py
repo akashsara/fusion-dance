@@ -1175,6 +1175,94 @@ class CNNPrior(nn.Module):
         return self.model(x)
 
 
+class CNNLSTM(nn.Module):
+    def __init__(
+        self,
+        num_classes,
+        input_image_size=64,
+        input_channels=3,
+        cnn_output_channels=512,
+        cnn_blocks=4,
+        lstm_hidden_size=512,
+        lstm_bidirectional=False,
+    ):
+        super(CNNLSTM, self).__init__()
+        ## Encoder
+        # CNN
+        layers = nn.ModuleList()
+        channel_sizes = self.calculate_channel_sizes(
+            input_channels, cnn_output_channels, cnn_blocks
+        )
+        kernel_size = 1
+        stride = 1
+        for i, (in_channels, out_channels) in enumerate(channel_sizes):
+            layers.append(
+                nn.Conv2d(
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    kernel_size=kernel_size,
+                    stride=stride,
+                    bias=False,
+                )
+            )
+            layers.append(nn.BatchNorm2d(out_channels))
+            layers.append(nn.ReLU(True))
+            if i == 0:
+                kernel_size = 2
+                stride = 2
+        self.encoder_cnn = nn.Sequential(*layers)
+        # FC
+        image_size = input_image_size // np.power(2, cnn_blocks - 1)
+        cnn_out_features = 2 * image_size * image_size * out_channels
+        self.encoder_fc = nn.Linear(cnn_out_features, num_classes)
+        ## Decoder
+        # LSTM
+        self.decoder_lstm = nn.LSTM(
+            input_size=num_classes,
+            hidden_size=lstm_hidden_size,
+            bidirectional=lstm_bidirectional,
+            batch_first=True,
+        )
+        # FC
+        lstm_out_features = (
+            lstm_hidden_size * 2 if lstm_bidirectional else lstm_hidden_size
+        )
+        self.decoder_fc = nn.Linear(lstm_out_features, num_classes)
+        # Save Certain Variables
+        self.lstm_hidden_size = lstm_hidden_size
+        self.num_classes = num_classes
+
+    def forward(self):
+        pass
+
+    def encode(self, x1, x2):
+        image_latent_x1 = self.encoder_cnn(x1)
+        image_latent_x2 = self.encoder_cnn(x2)
+        image_latent = torch.cat([image_latent_x1, image_latent_x2], dim=1)
+        encoded = self.encoder_fc(image_latent.flatten(start_dim=1))
+        return encoded.view(-1, 1, self.num_classes)
+
+    def decode(self, decoder_input, decoder_hidden=None):
+        if decoder_hidden is None:
+            decoder_hidden = (
+                torch.zeros(1, decoder_input.shape[0], self.lstm_hidden_size),
+                torch.zeros(1, decoder_input.shape[0], self.lstm_hidden_size),
+            )
+        decoder_output, decoder_hidden = self.decoder_lstm(
+            decoder_input, decoder_hidden
+        )
+        decoder_output = self.decoder_fc(decoder_output)
+        return decoder_output, decoder_hidden
+
+    def calculate_channel_sizes(self, image_channels, max_filters, num_layers):
+        channel_sizes = [(image_channels, max_filters // np.power(2, num_layers - 1))]
+        for i in range(1, num_layers):
+            prev = channel_sizes[-1][-1]
+            new = prev * 2
+            channel_sizes.append((prev, new))
+        return channel_sizes
+
+
 def get_freezable_layers(model):
     # Freeze Conv Layers
     freezable_layers = []
