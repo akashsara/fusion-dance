@@ -194,8 +194,8 @@ for epoch in range(epochs):
         # Get Encoder Outputs
         decoder_input = model.encode(base, fusee)
         decoder_hidden = (
-            torch.zeros(1, current_batch_size, prior_lstm_hidden_size),
-            torch.zeros(1, current_batch_size, prior_lstm_hidden_size),
+            torch.zeros(1, current_batch_size, prior_lstm_hidden_size).to(device),
+            torch.zeros(1, current_batch_size, prior_lstm_hidden_size).to(device),
         )
         # Run Through LSTM
         for i in range(y.shape[1]):
@@ -237,8 +237,8 @@ for epoch in range(epochs):
             # Get Encoder Outputs
             decoder_input = model.encode(base, fusee)
             decoder_hidden = (
-                torch.zeros(1, current_batch_size, prior_lstm_hidden_size),
-                torch.zeros(1, current_batch_size, prior_lstm_hidden_size),
+                torch.zeros(1, current_batch_size, prior_lstm_hidden_size).to(device),
+                torch.zeros(1, current_batch_size, prior_lstm_hidden_size).to(device),
             )
             # Run Through LSTM
             for i in range(y.shape[1]):
@@ -310,8 +310,8 @@ with torch.no_grad():
         # Get Encoder Outputs
         decoder_input = model.encode(base, fusee)
         decoder_hidden = (
-            torch.zeros(1, current_batch_size, prior_lstm_hidden_size),
-            torch.zeros(1, current_batch_size, prior_lstm_hidden_size),
+            torch.zeros(1, current_batch_size, prior_lstm_hidden_size).to(device),
+            torch.zeros(1, current_batch_size, prior_lstm_hidden_size).to(device),
         )
         # Run Through LSTM - Get Decoder Outputs
         for i in range(y.shape[1]):
