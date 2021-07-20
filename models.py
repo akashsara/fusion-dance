@@ -1215,10 +1215,11 @@ class CNN_RNN(nn.Module):
             if i == 0:
                 kernel_size = 2
                 stride = 2
+        layers.append(nn.Flatten())
         self.encoder_cnn = nn.Sequential(*layers)
         # FC
         image_size = input_image_size // np.power(2, cnn_blocks - 1)
-        cnn_out_features = 2 * image_size * image_size * out_channels
+        cnn_out_features = image_size * image_size * out_channels
         self.encoder_fc = nn.Linear(cnn_out_features, num_classes)
         ## Decoder
         if self.rnn_type == "lstm":
@@ -1244,11 +1245,9 @@ class CNN_RNN(nn.Module):
     def forward(self):
         pass
 
-    def encode(self, x1, x2):
-        image_latent_x1 = self.encoder_cnn(x1)
-        image_latent_x2 = self.encoder_cnn(x2)
-        image_latent = torch.cat([image_latent_x1, image_latent_x2], dim=1)
-        encoded = self.encoder_fc(image_latent.flatten(start_dim=1))
+    def encode(self, x):
+        image_latent = self.encoder_cnn(x)
+        encoded = self.encoder_fc(image_latent)
         return encoded.view(-1, 1, self.num_classes)
 
     def decode(self, decoder_input, decoder_hidden):

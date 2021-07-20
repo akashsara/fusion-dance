@@ -29,11 +29,11 @@ use_noise_images = True
 
 experiment_name = f"cnn_rnn_v1"
 
-vq_vae_experiment_name = f"vq_vae_v3.6"
-vq_vae_num_layers = 1
+vq_vae_experiment_name = f"vq_vae_v5.1"
+vq_vae_num_layers = 4
 vq_vae_max_filters = 512
-vq_vae_use_max_filters = False
-vq_vae_num_embeddings = 128
+vq_vae_use_max_filters = True
+vq_vae_num_embeddings = 256
 vq_vae_embedding_dim = 32
 vq_vae_commitment_cost = 0.25
 vq_vae_small_conv = True  # To use the 1x1 convolution layer
@@ -41,7 +41,7 @@ vq_vae_encoded_image_size = image_size // np.power(2, vq_vae_num_layers)
 
 prior_num_classes = vq_vae_num_embeddings
 prior_input_image_size = image_size
-prior_input_channels = 3
+prior_input_channels = 6
 prior_cnn_output_channels = 512
 prior_cnn_blocks = 4
 prior_rnn_hidden_size = 512
@@ -195,7 +195,7 @@ for epoch in range(epochs):
             )
 
         # Get Encoder Outputs
-        decoder_input = model.encode(base, fusee)
+        decoder_input = model.encode(torch.cat([base, fusee], dim=1))
 
         # Init Hidden State
         decoder_hidden = model.init_hidden_state(current_batch_size, device)
@@ -228,6 +228,7 @@ for epoch in range(epochs):
     model.eval()
     with torch.no_grad():
         for iteration, batch in enumerate(tqdm(val_dataloader)):
+            batch_loss = 0
             # Move batch to device
             _, (base, fusee, fusion) = batch  # (names), (images)
             base = base.to(device)
@@ -244,7 +245,7 @@ for epoch in range(epochs):
             )
 
             # Get Encoder Outputs
-            decoder_input = model.encode(base, fusee)
+            decoder_input = model.encode(torch.cat([base, fusee], dim=1))
 
             # Init Hidden State
             decoder_hidden = model.init_hidden_state(current_batch_size, device)
@@ -320,7 +321,7 @@ with torch.no_grad():
         y_hat = torch.zeros_like(y)
 
         # Get Encoder Outputs
-        decoder_input = model.encode(base, fusee)
+        decoder_input = model.encode(torch.cat([base, fusee], dim=1))
 
         # Init Hidden State
         decoder_hidden = model.init_hidden_state(current_batch_size, device)
