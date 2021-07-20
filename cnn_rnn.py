@@ -20,20 +20,20 @@ _ = torch.manual_seed(seed)
 #################################### Config ####################################
 ################################################################################
 learning_rate = 1e-4
-epochs = 25
+epochs = 10
 batch_size = 64
 num_dataloader_workers = 0
 
 image_size = 64
 use_noise_images = True
 
-experiment_name = f"cnn_lstm_v1"
+experiment_name = f"cnn_rnn_v1"
 
-vq_vae_experiment_name = f"vq_vae_v5.10"
-vq_vae_num_layers = 0
+vq_vae_experiment_name = f"vq_vae_v3.6"
+vq_vae_num_layers = 1
 vq_vae_max_filters = 512
-vq_vae_use_max_filters = True
-vq_vae_num_embeddings = 256
+vq_vae_use_max_filters = False
+vq_vae_num_embeddings = 128
 vq_vae_embedding_dim = 32
 vq_vae_commitment_cost = 0.25
 vq_vae_small_conv = True  # To use the 1x1 convolution layer
@@ -44,8 +44,9 @@ prior_input_image_size = image_size
 prior_input_channels = 3
 prior_cnn_output_channels = 512
 prior_cnn_blocks = 4
-prior_lstm_hidden_size = 512
-prior_lstm_bidirectional = False
+prior_rnn_hidden_size = 512
+prior_rnn_bidirectional = False
+prior_rnn_type = "lstm"
 
 data_prefix = "data\\pokemon\\final\\standard"
 fusion_data_prefix = "data\\pokemon\\final\\fusions"
@@ -142,17 +143,18 @@ vq_vae.eval()
 vq_vae.to(device)
 
 # Create Model
-model = models.CNNLSTM(
+model = models.CNN_RNN(
     num_classes=prior_num_classes,
     input_image_size=prior_input_image_size,
     input_channels=prior_input_channels,
     cnn_output_channels=prior_cnn_output_channels,
     cnn_blocks=prior_cnn_blocks,
-    lstm_hidden_size=prior_lstm_hidden_size,
-    lstm_bidirectional=prior_lstm_bidirectional,
+    rnn_hidden_size=prior_rnn_hidden_size,
+    rnn_bidirectional=prior_rnn_bidirectional,
+    rnn_type=prior_rnn_type,
 )
 model.to(device)
-
+print(model)
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 criterion = torch.nn.CrossEntropyLoss()
 
@@ -161,6 +163,7 @@ criterion = torch.nn.CrossEntropyLoss()
 ################################################################################
 
 # Train
+sequence_length = vq_vae_encoded_image_size ** 2
 all_train_loss = []
 all_val_loss = []
 
@@ -193,11 +196,11 @@ for epoch in range(epochs):
 
         # Get Encoder Outputs
         decoder_input = model.encode(base, fusee)
-        decoder_hidden = (
-            torch.zeros(1, current_batch_size, prior_lstm_hidden_size).to(device),
-            torch.zeros(1, current_batch_size, prior_lstm_hidden_size).to(device),
-        )
-        # Run Through LSTM
+
+        # Init Hidden State
+        decoder_hidden = model.init_hidden_state(current_batch_size, device)
+
+        # Run Through RNN
         for i in range(y.shape[1]):
             # Get Output For Timestep
             decoder_output, decoder_hidden = model.decode(decoder_input, decoder_hidden)
@@ -206,8 +209,14 @@ for epoch in range(epochs):
             # Calculate Loss
             batch_loss += criterion(decoder_output.squeeze(1), y[:, i])
 
+        # Normalize Batch Loss by Sequence Length
+        batch_loss /= sequence_length
+
         # Backprop
         batch_loss.backward()
+
+        # Clip Gradients
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=2.0)
 
         # Update our optimizer parameters
         optimizer.step()
@@ -236,11 +245,11 @@ for epoch in range(epochs):
 
             # Get Encoder Outputs
             decoder_input = model.encode(base, fusee)
-            decoder_hidden = (
-                torch.zeros(1, current_batch_size, prior_lstm_hidden_size).to(device),
-                torch.zeros(1, current_batch_size, prior_lstm_hidden_size).to(device),
-            )
-            # Run Through LSTM
+
+            # Init Hidden State
+            decoder_hidden = model.init_hidden_state(current_batch_size, device)
+
+            # Run Through RNN
             for i in range(y.shape[1]):
                 # Get Output For Timestep
                 decoder_output, decoder_hidden = model.decode(
@@ -250,6 +259,9 @@ for epoch in range(epochs):
                 decoder_input = decoder_output.detach()
                 # Calculate Loss
                 batch_loss += criterion(decoder_output.squeeze(1), y[:, i])
+
+            # Normalize Batch Loss by Sequence Length
+            batch_loss /= sequence_length
 
             # Add the batch's loss to the total loss for the epoch
             val_loss += batch_loss.item()
@@ -309,11 +321,11 @@ with torch.no_grad():
 
         # Get Encoder Outputs
         decoder_input = model.encode(base, fusee)
-        decoder_hidden = (
-            torch.zeros(1, current_batch_size, prior_lstm_hidden_size).to(device),
-            torch.zeros(1, current_batch_size, prior_lstm_hidden_size).to(device),
-        )
-        # Run Through LSTM - Get Decoder Outputs
+
+        # Init Hidden State
+        decoder_hidden = model.init_hidden_state(current_batch_size, device)
+
+        # Run Through RNN - Get Decoder Outputs
         for i in range(y.shape[1]):
             # Get Output For Timestep
             decoder_output, decoder_hidden = model.decode(decoder_input, decoder_hidden)
