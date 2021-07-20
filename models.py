@@ -1175,7 +1175,7 @@ class CNNPrior(nn.Module):
         return self.model(x)
 
 
-class CNNLSTM(nn.Module):
+class CNN_RNN(nn.Module):
     def __init__(
         self,
         num_classes,
@@ -1183,10 +1183,15 @@ class CNNLSTM(nn.Module):
         input_channels=3,
         cnn_output_channels=512,
         cnn_blocks=4,
-        lstm_hidden_size=512,
-        lstm_bidirectional=False,
+        rnn_hidden_size=512,
+        rnn_bidirectional=False,
+        rnn_type="LSTM",
     ):
-        super(CNNLSTM, self).__init__()
+        super(CNN_RNN, self).__init__()
+        # Save Certain Variables
+        self.rnn_hidden_size = rnn_hidden_size
+        self.num_classes = num_classes
+        self.rnn_type = rnn_type.lower()
         ## Encoder
         # CNN
         layers = nn.ModuleList()
@@ -1216,21 +1221,25 @@ class CNNLSTM(nn.Module):
         cnn_out_features = 2 * image_size * image_size * out_channels
         self.encoder_fc = nn.Linear(cnn_out_features, num_classes)
         ## Decoder
-        # LSTM
-        self.decoder_lstm = nn.LSTM(
-            input_size=num_classes,
-            hidden_size=lstm_hidden_size,
-            bidirectional=lstm_bidirectional,
-            batch_first=True,
-        )
+        if self.rnn_type == "lstm":
+            # LSTM
+            self.decoder_rnn = nn.LSTM(
+                input_size=num_classes,
+                hidden_size=rnn_hidden_size,
+                bidirectional=rnn_bidirectional,
+                batch_first=True,
+            )
+        else:
+            # GRU
+            self.decoder_rnn = nn.GRU(
+                input_size=num_classes,
+                hidden_size=rnn_hidden_size,
+                bidirectional=rnn_bidirectional,
+                batch_first=True,
+            )
         # FC
-        lstm_out_features = (
-            lstm_hidden_size * 2 if lstm_bidirectional else lstm_hidden_size
-        )
-        self.decoder_fc = nn.Linear(lstm_out_features, num_classes)
-        # Save Certain Variables
-        self.lstm_hidden_size = lstm_hidden_size
-        self.num_classes = num_classes
+        rnn_out_features = rnn_hidden_size * 2 if rnn_bidirectional else rnn_hidden_size
+        self.decoder_fc = nn.Linear(rnn_out_features, num_classes)
 
     def forward(self):
         pass
@@ -1242,15 +1251,8 @@ class CNNLSTM(nn.Module):
         encoded = self.encoder_fc(image_latent.flatten(start_dim=1))
         return encoded.view(-1, 1, self.num_classes)
 
-    def decode(self, decoder_input, decoder_hidden=None):
-        if decoder_hidden is None:
-            decoder_hidden = (
-                torch.zeros(1, decoder_input.shape[0], self.lstm_hidden_size),
-                torch.zeros(1, decoder_input.shape[0], self.lstm_hidden_size),
-            )
-        decoder_output, decoder_hidden = self.decoder_lstm(
-            decoder_input, decoder_hidden
-        )
+    def decode(self, decoder_input, decoder_hidden):
+        decoder_output, decoder_hidden = self.decoder_rnn(decoder_input, decoder_hidden)
         decoder_output = self.decoder_fc(decoder_output)
         return decoder_output, decoder_hidden
 
@@ -1261,6 +1263,15 @@ class CNNLSTM(nn.Module):
             new = prev * 2
             channel_sizes.append((prev, new))
         return channel_sizes
+
+    def init_hidden_state(self, batch_size, device):
+        if self.rnn_type == "lstm":
+            return (
+                torch.zeros(1, batch_size, self.rnn_hidden_size, device=device),
+                torch.zeros(1, batch_size, self.rnn_hidden_size, device=device),
+            )
+        else:
+            return torch.zeros(1, batch_size, self.rnn_hidden_size, device=device)
 
 
 def get_freezable_layers(model):
