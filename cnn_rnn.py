@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import pytorch_msssim
 from tqdm import tqdm
+from PIL import Image
 
 import utils.data as data
 import utils.graphics as graphics
@@ -47,6 +48,9 @@ prior_cnn_blocks = 4
 prior_rnn_hidden_size = 512
 prior_rnn_bidirectional = False
 prior_rnn_type = "lstm"
+
+normal_weight = 1
+background_weight = 1
 
 data_prefix = "data\\pokemon\\final\\standard"
 fusion_data_prefix = "data\\pokemon\\final\\fusions"
@@ -155,8 +159,23 @@ model = models.CNN_RNN(
 )
 model.to(device)
 print(model)
+
+# Compute Class Weights
+white = Image.new(mode="RGB", size=(image_size, image_size), color="white")
+black = Image.new(mode="RGB", size=(image_size, image_size), color="black")
+class_weights = torch.full(
+    (prior_num_classes,), fill_value=normal_weight, device=device, dtype=torch.float32
+)
+with torch.no_grad():
+    _, _, _, encodings = vq_vae(transform(white).unsqueeze(0).to(device))
+    white = encodings.flatten()[0].detach()
+    class_weights[white] = background_weight
+    _, _, _, encodings = vq_vae(transform(black).unsqueeze(0).to(device))
+    black = encodings.flatten()[0].detach()
+    class_weights[black] = background_weight
+
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-criterion = torch.nn.CrossEntropyLoss()
+criterion = torch.nn.CrossEntropyLoss(weight=class_weights)
 
 ################################################################################
 ################################### Training ###################################
