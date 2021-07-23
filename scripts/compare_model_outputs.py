@@ -5,7 +5,7 @@ import os
 import sys
 
 
-def pick_images(dir, num_images=16, max_tries=10000):
+def pick_images(dir, num_images=16, max_tries=10000, fusions=False):
     """
     Picks num_images sprites from the dataset such that no image appears twice.
     """
@@ -19,10 +19,10 @@ def pick_images(dir, num_images=16, max_tries=10000):
             print("Error picking Images!")
             break
         selected = np.random.choice(all_images)
-        id_ = selected.split("_")[0]
-        # Ignore Fusion Images
-        if '_' not in selected:
-            continue
+        if fusions:
+            id_ = selected.split(".")[0]
+        else:
+            id_ = selected.split("_")[0]
         # Ignore Pokemon Already Selected
         if id_ in unique_images:
             continue
@@ -65,19 +65,21 @@ def make_image_grid(images, title):
     return fig, axis
 
 
-base_dir = "data\\final\\standard\\test"
+base_dir = "data\\pokemon\\final\\fusions\\test"
 output_dir = "data\\"
-model_prefix = f"outputs\\tbd\\"
+model_prefix = f"outputs\\"
 num_images = 16
 model_list = [
-    "vq_vae_v1.5",
-    "vq_vae_v2.1",
-    "vq_vae_v3.6",
-    "vq_vae_v4.3",
-    "vq_vae_v5.10",
+    "cnn_rnn_v1",
+    "cnn_rnn_v1.1",
+    "cnn_rnn_v2",
+    "cnn_rnn_v2.1",
+    "cnn_rnn_v3",
+    "cnn_rnn_v3.1",
 ]
+is_fusions = "fusions" in base_dir
 
-images_to_load = pick_images(os.path.join(model_prefix, model_list[0], "generated"), num_images)
+images_to_load = pick_images(base_dir, num_images, fusions=is_fusions)
 
 caption = "base"
 images = get_images(base_dir, images_to_load)
