@@ -214,13 +214,14 @@ for epoch in range(epochs):
             )
 
         # Get Encoder Outputs
-        decoder_input = model(torch.cat([base, fusee], dim=1))
+        decoder_input_orig = model(torch.cat([base, fusee], dim=1))
 
         # Init Hidden State
         decoder_hidden = model.init_hidden_state(current_batch_size, device)
 
         # Run Through RNN
         for j, rnn in enumerate(model.decoder_rnns):
+            decoder_input = decoder_input_orig.detach()
             for i in range(vq_vae_encoded_image_size):
                 # Get Output For Timestep
                 decoder_output, decoder_hidden = rnn(decoder_input, decoder_hidden)
@@ -266,13 +267,14 @@ for epoch in range(epochs):
             )
 
             # Get Encoder Outputs
-            decoder_input = model(torch.cat([base, fusee], dim=1))
+            decoder_input_orig = model(torch.cat([base, fusee], dim=1))
 
             # Init Hidden State
             decoder_hidden = model.init_hidden_state(current_batch_size, device)
 
             # Run Through RNN
             for j, rnn in enumerate(model.decoder_rnns):
+                decoder_input = decoder_input_orig.detach()
                 for i in range(vq_vae_encoded_image_size):
                     # Get Output For Timestep
                     decoder_output, decoder_hidden = rnn(decoder_input, decoder_hidden)
@@ -342,13 +344,14 @@ with torch.no_grad():
         y_hat = torch.zeros_like(y)
 
         # Get Encoder Outputs
-        decoder_input = model(torch.cat([base, fusee], dim=1))
+        decoder_input_orig = model(torch.cat([base, fusee], dim=1))
 
         # Init Hidden State
         decoder_hidden = model.init_hidden_state(current_batch_size, device)
 
         # Run Through RNN
         for j, rnn in enumerate(model.decoder_rnns):
+            decoder_input = decoder_input_orig.detach()
             for i in range(vq_vae_encoded_image_size):
                 # Get Output For Timestep
                 decoder_output, decoder_hidden = rnn(decoder_input, decoder_hidden)
