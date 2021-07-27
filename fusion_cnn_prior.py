@@ -24,7 +24,10 @@ epochs = 5
 batch_size = 64
 num_dataloader_workers = 0
 
-experiment_name = f"fusion_cnn_prior_v2.2"
+base_weight = 1
+fusion_weight = 1
+
+experiment_name = f"fusion_cnn_prior_v3"
 
 mode = "discrete"
 vq_vae_experiment_name = f"vq_vae_v5.10"
@@ -49,7 +52,6 @@ data_prefix = "data\\pokemon\\final\\standard"
 fusion_data_prefix = "data\\pokemon\\final\\fusions"
 output_prefix = f"data\\{experiment_name}"
 vq_vae_model_prefix = f"outputs\\{vq_vae_experiment_name}"
-
 vq_vae_model_path = os.path.join(vq_vae_model_prefix, "model.pt")
 
 train_data_folder = os.path.join(data_prefix, "train")
@@ -60,7 +62,7 @@ fusion_train_data_folder = os.path.join(fusion_data_prefix, "train")
 fusion_val_data_folder = os.path.join(fusion_data_prefix, "val")
 fusion_test_data_folder = os.path.join(fusion_data_prefix, "test")
 
-output_dir = output_prefix
+output_dir = os.path.join(output_prefix, "generated")
 loss_output_path = os.path.join(output_prefix, "loss.jpg")
 model_output_path = os.path.join(output_prefix, "model.pt")
 ################################################################################
@@ -206,8 +208,14 @@ for epoch in range(epochs):
         if mode == "continuous-final_image":
             y_hat = vq_vae.decoder(y_hat)
 
-        # Calculate reconstruction loss
-        batch_loss = criterion(y_hat, y)
+        # Mask: 1=Not a Fusion; 0=Fusion
+        base_mask = (base == fusee).flatten(start_dim=1).all(dim=1)
+        fusion_mask = torch.logical_not(base_mask)
+
+        # Calculate Loss
+        base_loss = criterion(y_hat[base_mask], y[base_mask])
+        fusion_loss = criterion(y_hat[fusion_mask], y[fusion_mask])
+        batch_loss = base_weight * base_loss + fusion_weight * fusion_loss
 
         # Backprop
         batch_loss.backward()
@@ -255,9 +263,15 @@ for epoch in range(epochs):
             if mode == "continuous-final_image":
                 y_hat = vq_vae.decoder(y_hat)
 
-            # Calculate reconstruction loss
-            batch_loss = criterion(y_hat, y)
+            # Mask: 1=Not a Fusion; 0=Fusion
+            base_mask = (base == fusee).flatten(start_dim=1).all(dim=1)
+            fusion_mask = torch.logical_not(base_mask)
 
+            # Calculate Loss
+            base_loss = criterion(y_hat[base_mask], y[base_mask])
+            fusion_loss = criterion(y_hat[fusion_mask], y[fusion_mask])
+            batch_loss = base_weight * base_loss + fusion_weight * fusion_loss
+            
             # Add the batch's loss to the total loss for the epoch
             val_loss += batch_loss.item()
 
@@ -299,7 +313,7 @@ all_ssim = []
 with torch.no_grad():
     for iteration, batch in enumerate(tqdm(test_dataloader)):
         # Move batch to device
-        _, (base, fusee, fusion) = batch  # (names), (images)
+        (_, _, fusion_filenames), (base, fusee, fusion) = batch  # (names), (images)
         base = base.to(device)
         fusee = fusee.to(device)
         fusion = fusion.to(device)
@@ -348,6 +362,11 @@ with torch.no_grad():
         base_ssim = torch.masked_select(overall_ssim, mask)
         fusion_ssim = torch.masked_select(overall_ssim, torch.logical_not(mask))
         all_ssim.append((overall_ssim, base_ssim, fusion_ssim))
+
+        # Save
+        y_hat = y_hat.permute(0, 2, 3, 1).detach().cpu().numpy()
+        for image, filename in zip(y_hat, fusion_filenames):
+            plt.imsave(os.path.join(output_dir, filename), image)
 
 for i, mse_type in enumerate(["Overall", "Base", "Fusion"]):
     test_mse = torch.cat([x[i] for x in all_mse]).mean()
