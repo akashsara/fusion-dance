@@ -24,6 +24,23 @@ class CustomDataset(torch.utils.data.Dataset):
         return len(self.dataset)
 
 
+class CustomDatasetV2(torch.utils.data.Dataset):
+    def __init__(self, dataset_directory, transform):
+        self.dataset_path = dataset_directory
+        self.all_images = os.listdir(dataset_directory)
+        self.transform = transform
+
+    def __getitem__(self, index):
+        filename = self.all_images[index]
+        image_path = os.path.join(self.dataset_path, filename)
+        image = Image.open(image_path).convert("RGB")
+        fusion = self.transform(image)
+        return filename, fusion
+
+    def __len__(self):
+        return len(self.all_images)
+
+
 class FusionDataset(torch.utils.data.Dataset):
     def __init__(
         self,
