@@ -26,6 +26,7 @@ num_dataloader_workers = 0
 
 base_weight = 1
 fusion_weight = 1
+only_fusions = False
 
 experiment_name = f"fusion_cnn_prior_v3"
 
@@ -92,12 +93,23 @@ train_data = data.FusionDatasetV2(
     data_prefix,
     transform,
     use_noise_images,
+    only_fusions=only_fusions,
 )
 val_data = data.FusionDatasetV2(
-    val_data_folder, fusion_val_data_folder, data_prefix, transform, use_noise_images
+    val_data_folder,
+    fusion_val_data_folder,
+    data_prefix,
+    transform,
+    use_noise_images,
+    only_fusions=only_fusions,
 )
 test_data = data.FusionDatasetV2(
-    test_data_folder, fusion_test_data_folder, data_prefix, transform, use_noise_images
+    test_data_folder,
+    fusion_test_data_folder,
+    data_prefix,
+    transform,
+    use_noise_images,
+    only_fusions=only_fusions,
 )
 
 train_dataloader = torch.utils.data.DataLoader(
@@ -271,7 +283,7 @@ for epoch in range(epochs):
             base_loss = criterion(y_hat[base_mask], y[base_mask])
             fusion_loss = criterion(y_hat[fusion_mask], y[fusion_mask])
             batch_loss = base_weight * base_loss + fusion_weight * fusion_loss
-            
+
             # Add the batch's loss to the total loss for the epoch
             val_loss += batch_loss.item()
 

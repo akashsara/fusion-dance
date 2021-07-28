@@ -132,6 +132,7 @@ class FusionDatasetV2(torch.utils.data.Dataset):
         dataset_parent_dir,
         transform,
         use_noise_images,
+        only_fusions=False,
     ):
         self.dataset_path = dataset_path
         self.fusion_dataset_path = fusion_dataset_path
@@ -157,7 +158,10 @@ class FusionDatasetV2(torch.utils.data.Dataset):
             self.base_images = [x for x in all_images if "noise" not in x]
             all_images = os.listdir(fusion_dataset_path)
             self.fusion_images = [x for x in all_images if "noise" not in x]
-        self.all_images = self.base_images + self.fusion_images
+        if only_fusions:
+            self.all_images = self.fusion_images
+        else:
+            self.all_images = self.base_images + self.fusion_images
         self.transform = transform
 
     def to_3_digit(self, num):
