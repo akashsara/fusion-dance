@@ -24,8 +24,6 @@ epochs = 5
 batch_size = 64
 num_dataloader_workers = 0
 
-base_weight = 1
-fusion_weight = 1
 only_fusions = False
 
 experiment_name = f"fusion_cnn_prior_v3"
@@ -220,14 +218,8 @@ for epoch in range(epochs):
         if mode == "continuous-final_image":
             y_hat = vq_vae.decoder(y_hat)
 
-        # Mask: 1=Not a Fusion; 0=Fusion
-        base_mask = (base == fusee).flatten(start_dim=1).all(dim=1)
-        fusion_mask = torch.logical_not(base_mask)
-
         # Calculate Loss
-        base_loss = criterion(y_hat[base_mask], y[base_mask])
-        fusion_loss = criterion(y_hat[fusion_mask], y[fusion_mask])
-        batch_loss = base_weight * base_loss + fusion_weight * fusion_loss
+        batch_loss = criterion(y_hat, y)
 
         # Backprop
         batch_loss.backward()
@@ -275,14 +267,8 @@ for epoch in range(epochs):
             if mode == "continuous-final_image":
                 y_hat = vq_vae.decoder(y_hat)
 
-            # Mask: 1=Not a Fusion; 0=Fusion
-            base_mask = (base == fusee).flatten(start_dim=1).all(dim=1)
-            fusion_mask = torch.logical_not(base_mask)
-
             # Calculate Loss
-            base_loss = criterion(y_hat[base_mask], y[base_mask])
-            fusion_loss = criterion(y_hat[fusion_mask], y[fusion_mask])
-            batch_loss = base_weight * base_loss + fusion_weight * fusion_loss
+            batch_loss = criterion(y_hat, y)
 
             # Add the batch's loss to the total loss for the epoch
             val_loss += batch_loss.item()
