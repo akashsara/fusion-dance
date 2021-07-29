@@ -30,11 +30,11 @@ use_noise_images = True
 
 experiment_name = f"cnn_multirnn_v1"
 
-vq_vae_experiment_name = f"vq_vae_v5.1"
-vq_vae_num_layers = 4
+vq_vae_experiment_name = f"vq_vae_v3.6"
+vq_vae_num_layers = 1
 vq_vae_max_filters = 512
-vq_vae_use_max_filters = True
-vq_vae_num_embeddings = 256
+vq_vae_use_max_filters = False
+vq_vae_num_embeddings = 128
 vq_vae_embedding_dim = 32
 vq_vae_commitment_cost = 0.25
 vq_vae_small_conv = True  # To use the 1x1 convolution layer
@@ -48,6 +48,8 @@ prior_cnn_blocks = 4
 prior_rnn_hidden_size = 512
 prior_rnn_bidirectional = False
 prior_rnn_type = "gru"
+prior_num_rnns = 128
+sequence_length_per_rnn = (vq_vae_encoded_image_size ** 2) // prior_num_rnns
 
 normal_weight = 1
 background_weight = 1
@@ -149,7 +151,7 @@ vq_vae.to(device)
 # Create Model
 model = models.CNN_MultiRNN(
     num_classes=prior_num_classes,
-    num_rnns=vq_vae_encoded_image_size,
+    num_rnns=prior_num_rnns,
     input_image_size=prior_input_image_size,
     input_channels=prior_input_channels,
     cnn_output_channels=prior_cnn_output_channels,
@@ -222,11 +224,15 @@ for epoch in range(epochs):
         # Run Through RNN
         for j, rnn in enumerate(model.decoder_rnns):
             decoder_input = decoder_input_orig.detach()
-            for i in range(vq_vae_encoded_image_size):
+            for i in range(sequence_length_per_rnn):
                 # Get Output For Timestep
                 decoder_output, decoder_hidden = rnn(decoder_input, decoder_hidden)
                 # Prepare Next Input
                 decoder_input = decoder_output.detach()
+                # Calculate Current Image Indices
+                current_num = ((j * sequence_length_per_rnn) + i)
+                j =  current_num // vq_vae_encoded_image_size
+                i = current_num % vq_vae_encoded_image_size
                 # Calculate Loss
                 batch_loss += criterion(decoder_output.squeeze(1), y[:, j, i])
 
@@ -275,11 +281,15 @@ for epoch in range(epochs):
             # Run Through RNN
             for j, rnn in enumerate(model.decoder_rnns):
                 decoder_input = decoder_input_orig.detach()
-                for i in range(vq_vae_encoded_image_size):
+                for i in range(sequence_length_per_rnn):
                     # Get Output For Timestep
                     decoder_output, decoder_hidden = rnn(decoder_input, decoder_hidden)
                     # Prepare Next Input
                     decoder_input = decoder_output.detach()
+                    # Calculate Current Image Indices
+                    current_num = ((j * sequence_length_per_rnn) + i)
+                    j =  current_num // vq_vae_encoded_image_size
+                    i = current_num % vq_vae_encoded_image_size
                     # Calculate Loss
                     batch_loss += criterion(decoder_output.squeeze(1), y[:, j, i])
 
@@ -352,11 +362,15 @@ with torch.no_grad():
         # Run Through RNN
         for j, rnn in enumerate(model.decoder_rnns):
             decoder_input = decoder_input_orig.detach()
-            for i in range(vq_vae_encoded_image_size):
+            for i in range(sequence_length_per_rnn):
                 # Get Output For Timestep
                 decoder_output, decoder_hidden = rnn(decoder_input, decoder_hidden)
                 # Prepare Next Input
                 decoder_input = decoder_output.detach()
+                # Calculate Current Image Indices
+                current_num = ((j * sequence_length_per_rnn) + i)
+                j =  current_num // vq_vae_encoded_image_size
+                i = current_num % vq_vae_encoded_image_size
                 # Store Prediction
                 y_hat[:, j, i] = decoder_output.squeeze(1).argmax(dim=1).detach().cpu()
 
