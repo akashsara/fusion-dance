@@ -50,6 +50,7 @@ prior_rnn_bidirectional = False
 prior_rnn_type = "gru"
 prior_num_rnns = 128
 sequence_length_per_rnn = (vq_vae_encoded_image_size ** 2) // prior_num_rnns
+use_image_as_rnn_input = False
 
 normal_weight = 1
 background_weight = 1
@@ -223,7 +224,8 @@ for epoch in range(epochs):
 
         # Run Through RNN
         for j, rnn in enumerate(model.decoder_rnns):
-            decoder_input = decoder_input_orig.detach()
+            if j == 0 or use_image_as_rnn_input:
+                decoder_input = decoder_input_orig.detach()
             for i in range(sequence_length_per_rnn):
                 # Get Output For Timestep
                 decoder_output, decoder_hidden = rnn(decoder_input, decoder_hidden)
@@ -280,7 +282,8 @@ for epoch in range(epochs):
 
             # Run Through RNN
             for j, rnn in enumerate(model.decoder_rnns):
-                decoder_input = decoder_input_orig.detach()
+                if j == 0 or use_image_as_rnn_input:
+                    decoder_input = decoder_input_orig.detach()
                 for i in range(sequence_length_per_rnn):
                     # Get Output For Timestep
                     decoder_output, decoder_hidden = rnn(decoder_input, decoder_hidden)
@@ -361,7 +364,8 @@ with torch.no_grad():
 
         # Run Through RNN
         for j, rnn in enumerate(model.decoder_rnns):
-            decoder_input = decoder_input_orig.detach()
+            if j == 0 or use_image_as_rnn_input:
+                decoder_input = decoder_input_orig.detach()
             for i in range(sequence_length_per_rnn):
                 # Get Output For Timestep
                 decoder_output, decoder_hidden = rnn(decoder_input, decoder_hidden)
