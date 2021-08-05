@@ -1192,6 +1192,7 @@ class CNN_RNN(nn.Module):
         self.rnn_hidden_size = rnn_hidden_size
         self.num_classes = num_classes
         self.rnn_type = rnn_type.lower()
+        self.rnn_bidirectional = rnn_bidirectional
         ## Encoder
         # CNN
         layers = nn.ModuleList()
@@ -1239,7 +1240,9 @@ class CNN_RNN(nn.Module):
                 batch_first=True,
             )
         # FC
-        rnn_out_features = rnn_hidden_size * 2 if rnn_bidirectional else rnn_hidden_size
+        rnn_out_features = (
+            rnn_hidden_size * 2 if self.rnn_bidirectional else rnn_hidden_size
+        )
         self.decoder_fc = nn.Linear(rnn_out_features, num_classes)
 
     def forward(self):
@@ -1264,13 +1267,18 @@ class CNN_RNN(nn.Module):
         return channel_sizes
 
     def init_hidden_state(self, batch_size, device):
+        first_dim = 1
+        if self.rnn_bidirectional:
+            first_dim = 2
         if self.rnn_type == "lstm":
             return (
-                torch.zeros(1, batch_size, self.rnn_hidden_size, device=device),
-                torch.zeros(1, batch_size, self.rnn_hidden_size, device=device),
+                torch.zeros(first_dim, batch_size, self.rnn_hidden_size, device=device),
+                torch.zeros(first_dim, batch_size, self.rnn_hidden_size, device=device),
             )
         else:
-            return torch.zeros(1, batch_size, self.rnn_hidden_size, device=device)
+            return torch.zeros(
+                first_dim, batch_size, self.rnn_hidden_size, device=device
+            )
 
 
 class RNNBlock(nn.Module):
@@ -1356,6 +1364,7 @@ class CNN_MultiRNN(nn.Module):
         self.num_classes = num_classes
         self.rnn_type = rnn_type.lower()
         self.num_rnns = num_rnns
+        self.rnn_bidirectional = rnn_bidirectional
 
     def forward(self, x):
         # Only gives the Encoder Output
@@ -1380,12 +1389,15 @@ class CNN_MultiRNN(nn.Module):
         return channel_sizes
 
     def init_hidden_state(self, batch_size, device):
+        first_dim = 1
+        if self.rnn_bidirectional:
+            first_dim = 2
         if self.rnn_type == "lstm":
             return (
-                torch.zeros(1, batch_size, self.rnn_hidden_size, device=device),
-                torch.zeros(1, batch_size, self.rnn_hidden_size, device=device),
+                torch.zeros(first_dim, batch_size, self.rnn_hidden_size, device=device),
+                torch.zeros(first_dim, batch_size, self.rnn_hidden_size, device=device),
             )
-        return torch.zeros(1, batch_size, self.rnn_hidden_size, device=device)
+        return torch.zeros(first_dim, batch_size, self.rnn_hidden_size, device=device)
 
 
 class CNNDiscriminator(nn.Module):

@@ -30,11 +30,11 @@ use_noise_images = True
 
 experiment_name = f"cnn_multirnn_v1"
 
-vq_vae_experiment_name = f"vq_vae_v3.6"
-vq_vae_num_layers = 1
+vq_vae_experiment_name = f"vq_vae_v5.1"
+vq_vae_num_layers = 4
 vq_vae_max_filters = 512
-vq_vae_use_max_filters = False
-vq_vae_num_embeddings = 128
+vq_vae_use_max_filters = True
+vq_vae_num_embeddings = 256
 vq_vae_embedding_dim = 32
 vq_vae_commitment_cost = 0.25
 vq_vae_small_conv = True  # To use the 1x1 convolution layer
@@ -47,8 +47,8 @@ prior_cnn_output_channels = 512
 prior_cnn_blocks = 4
 prior_rnn_hidden_size = 512
 prior_rnn_bidirectional = False
-prior_rnn_type = "gru"
-prior_num_rnns = 128
+prior_rnn_type = "lstm"
+prior_num_rnns = 4
 sequence_length_per_rnn = (vq_vae_encoded_image_size ** 2) // prior_num_rnns
 use_image_as_rnn_input = False
 
