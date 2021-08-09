@@ -1175,6 +1175,56 @@ class CNNPrior(nn.Module):
         return self.model(x)
 
 
+class CNNPriorV2(nn.Module):
+    def __init__(
+        self,
+        input_channels,
+        output_channels,
+        input_dim,
+        output_dim,
+        hidden_size,
+        max_filters,
+        kernel_size,
+        stride,
+    ):
+        super(CNNPriorV2, self).__init__()
+        flattened_size = self.calculate_flattened_size(
+            input_dim, max_filters, kernel_size, stride
+        )
+        output_size = output_dim * output_dim * output_channels
+        self.model = nn.Sequential(
+            nn.Conv2d(
+                in_channels=input_channels,
+                out_channels=max_filters // 2,
+                kernel_size=1,
+                stride=1,
+            ),
+            nn.ReLU(True),
+            nn.Conv2d(
+                in_channels=max_filters // 2,
+                out_channels=max_filters,
+                kernel_size=kernel_size,
+                stride=stride,
+            ),
+            nn.ReLU(True),
+            nn.Flatten(),
+            nn.Linear(flattened_size, hidden_size),
+            nn.ReLU(True),
+            nn.Linear(hidden_size, output_size),
+        )
+        self.output_channels = output_channels
+        self.output_dim = output_dim
+
+    def calculate_flattened_size(self, input_dim, max_filters, kernel_size, stride):
+        new_size = ((input_dim - kernel_size) / stride) + 1
+        return int(max_filters * new_size * new_size)
+
+    def forward(self, x):
+        return self.model(x).view(
+            -1, self.output_channels, self.output_dim, self.output_dim
+        )
+
+
 class CNN_RNN(nn.Module):
     def __init__(
         self,
