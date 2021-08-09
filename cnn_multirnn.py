@@ -27,6 +27,7 @@ num_dataloader_workers = 0
 
 image_size = 64
 use_noise_images = True
+only_fusions = False
 
 experiment_name = f"cnn_multirnn_v1"
 
@@ -100,12 +101,23 @@ train_data = data.FusionDatasetV2(
     data_prefix,
     transform,
     use_noise_images,
+    only_fusions=only_fusions,
 )
 val_data = data.FusionDatasetV2(
-    val_data_folder, fusion_val_data_folder, data_prefix, transform, use_noise_images
+    val_data_folder,
+    fusion_val_data_folder,
+    data_prefix,
+    transform,
+    use_noise_images,
+    only_fusions=only_fusions,
 )
 test_data = data.FusionDatasetV2(
-    test_data_folder, fusion_test_data_folder, data_prefix, transform, use_noise_images
+    test_data_folder,
+    fusion_test_data_folder,
+    data_prefix,
+    transform,
+    use_noise_images,
+    only_fusions=only_fusions,
 )
 
 train_dataloader = torch.utils.data.DataLoader(
@@ -232,8 +244,8 @@ for epoch in range(epochs):
                 # Prepare Next Input
                 decoder_input = decoder_output.detach()
                 # Calculate Current Image Indices
-                current_num = ((j * sequence_length_per_rnn) + i)
-                j =  current_num // vq_vae_encoded_image_size
+                current_num = (j * sequence_length_per_rnn) + i
+                j = current_num // vq_vae_encoded_image_size
                 i = current_num % vq_vae_encoded_image_size
                 # Calculate Loss
                 batch_loss += criterion(decoder_output.squeeze(1), y[:, j, i])
@@ -290,8 +302,8 @@ for epoch in range(epochs):
                     # Prepare Next Input
                     decoder_input = decoder_output.detach()
                     # Calculate Current Image Indices
-                    current_num = ((j * sequence_length_per_rnn) + i)
-                    j =  current_num // vq_vae_encoded_image_size
+                    current_num = (j * sequence_length_per_rnn) + i
+                    j = current_num // vq_vae_encoded_image_size
                     i = current_num % vq_vae_encoded_image_size
                     # Calculate Loss
                     batch_loss += criterion(decoder_output.squeeze(1), y[:, j, i])
@@ -372,8 +384,8 @@ with torch.no_grad():
                 # Prepare Next Input
                 decoder_input = decoder_output.detach()
                 # Calculate Current Image Indices
-                current_num = ((j * sequence_length_per_rnn) + i)
-                j =  current_num // vq_vae_encoded_image_size
+                current_num = (j * sequence_length_per_rnn) + i
+                j = current_num // vq_vae_encoded_image_size
                 i = current_num % vq_vae_encoded_image_size
                 # Store Prediction
                 y_hat[:, j, i] = decoder_output.squeeze(1).argmax(dim=1).detach().cpu()
