@@ -1225,6 +1225,73 @@ class CNNPriorV2(nn.Module):
         )
 
 
+class CNNPriorV3(nn.Module):
+    def __init__(
+        self,
+        input_channels,
+        output_channels,
+        input_dim,
+        output_dim,
+        hidden_size,
+        max_filters,
+        kernel_size,
+        stride,
+    ):
+        super(CNNPriorV3, self).__init__()
+        flattened_size = self.calculate_size(
+            input_dim, max_filters, kernel_size, stride
+        )
+        decoder_input_size = ((output_dim // 2) ** 2) * max_filters // 2
+        out_shape = [max_filters // 2, output_dim // 2, output_dim // 2]
+        self.encoder = nn.Sequential(
+            nn.Conv2d(
+                in_channels=input_channels,
+                out_channels=max_filters // 2,
+                kernel_size=1,
+                stride=1,
+            ),
+            nn.ReLU(True),
+            nn.Conv2d(
+                in_channels=max_filters // 2,
+                out_channels=max_filters,
+                kernel_size=kernel_size,
+                stride=stride,
+            ),
+            nn.ReLU(True),
+            nn.Flatten(),
+            nn.Linear(flattened_size, hidden_size // 2),
+            nn.ReLU(True),
+        )
+        self.decoder = nn.Sequential(
+            nn.Linear(hidden_size, decoder_input_size),
+            nn.ReLU(True),
+            nn.Unflatten(dim=1, unflattened_size=out_shape),
+            nn.ConvTranspose2d(
+                in_channels=max_filters // 2,
+                out_channels=max_filters,
+                kernel_size=2,
+                stride=2,
+            ),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(
+                in_channels=max_filters,
+                out_channels=output_channels,
+                kernel_size=1,
+                stride=1,
+            ),
+            nn.ReLU(True),
+        )
+
+    def calculate_size(self, input_dim, max_filters, kernel_size, stride):
+        new_size = ((input_dim - kernel_size) / stride) + 1
+        return int(max_filters * new_size * new_size)
+
+    def forward(self, x1, x2):
+        x1 = self.encoder(x1)
+        x2 = self.encoder(x2)
+        return self.decoder(torch.cat([x1, x2], dim=1))
+
+
 class CNN_RNN(nn.Module):
     def __init__(
         self,

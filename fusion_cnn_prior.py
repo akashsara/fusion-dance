@@ -26,26 +26,36 @@ num_dataloader_workers = 0
 
 only_fusions = False
 
-experiment_name = f"fusion_cnn_prior_v3"
+# For PriorV1 - any name
+# For PriorV2 - "linear" in name
+# For PriorV3 - "autoencoding" in name
+experiment_name = f"fusion_cnn_autoencoding_prior_v3"
 
 mode = "discrete"
-vq_vae_experiment_name = f"vq_vae_v5.10"
-vq_vae_num_layers = 0
+vq_vae_experiment_name = f"vq_vae_v5.17"
+vq_vae_num_layers = 2
 vq_vae_max_filters = 512
 vq_vae_use_max_filters = True
-vq_vae_num_embeddings = 256
-vq_vae_embedding_dim = 32
+vq_vae_num_embeddings = 1024
+vq_vae_embedding_dim = 64
 vq_vae_commitment_cost = 0.25
 vq_vae_small_conv = True  # To use the 1x1 convolution layer
 
 image_size = 64
 use_noise_images = True
-prior_input_channels = 6  # Two Images
+
+# Two Images
+prior_input_channels = 6 if "autoencoding" not in experiment_name else 3  
 prior_output_channels = (
     vq_vae_num_embeddings if mode == "discrete" else vq_vae_embedding_dim
 )
 prior_input_dim = image_size
-prior_output_dim = prior_input_dim // np.power(2, vq_vae_num_layers)
+prior_output_dim = prior_input_dim // (2 ** vq_vae_num_layers)
+###### Only if PriorV2 or PriorV3 ######
+prior_hidden_size = 512
+prior_max_filters = 512
+prior_kernel_size = 4
+prior_stride = 4
 
 data_prefix = "data\\pokemon\\final\\standard"
 fusion_data_prefix = "data\\pokemon\\final\\fusions"
@@ -152,13 +162,39 @@ vq_vae.eval()
 vq_vae.to(device)
 
 # Create Model
-model = models.CNNPrior(
-    input_channels=prior_input_channels,
-    output_channels=prior_output_channels,
-    input_dim=prior_input_dim,
-    output_dim=prior_output_dim,
-)
+combine_model_inputs = True
+if "linear" in experiment_name:
+    model = models.CNNPriorV2(
+        input_channels=prior_input_channels,
+        output_channels=prior_output_channels,
+        input_dim=prior_input_dim,
+        output_dim=prior_output_dim,
+        hidden_size=prior_hidden_size,
+        max_filters=prior_max_filters,
+        kernel_size=prior_kernel_size,
+        stride=prior_stride,
+    )
+elif "autoencoding" in experiment_name:
+    model = models.CNNPriorV3(
+        input_channels=prior_input_channels,
+        output_channels=prior_output_channels,
+        input_dim=prior_input_dim,
+        output_dim=prior_output_dim,
+        hidden_size=prior_hidden_size,
+        max_filters=prior_max_filters,
+        kernel_size=prior_kernel_size,
+        stride=prior_stride,
+    )
+    combine_model_inputs = False
+else:
+    model = models.CNNPrior(
+        input_channels=prior_input_channels,
+        output_channels=prior_output_channels,
+        input_dim=prior_input_dim,
+        output_dim=prior_output_dim,
+    )
 model.to(device)
+print(model)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 if mode == "discrete":
@@ -213,7 +249,10 @@ for epoch in range(epochs):
                 y = fusion
 
         # Run our model & get outputs
-        y_hat = model(torch.cat([base, fusee], dim=1))
+        if combine_model_inputs:
+            y_hat = model(torch.cat([base, fusee], dim=1))
+        else:
+            y_hat = model(base, fusee)
 
         if mode == "continuous-final_image":
             y_hat = vq_vae.decoder(y_hat)
@@ -262,7 +301,10 @@ for epoch in range(epochs):
                 y = fusion
 
             # Run our model & get outputs
-            y_hat = model(torch.cat([base, fusee], dim=1))
+            if combine_model_inputs:
+                y_hat = model(torch.cat([base, fusee], dim=1))
+            else:
+                y_hat = model(base, fusee)
 
             if mode == "continuous-final_image":
                 y_hat = vq_vae.decoder(y_hat)
@@ -336,7 +378,10 @@ with torch.no_grad():
             y = fusion
 
         # Run our model & get outputs
-        y_hat = model(torch.cat([base, fusee], dim=1))
+        if combine_model_inputs:
+            y_hat = model(torch.cat([base, fusee], dim=1))
+        else:
+            y_hat = model(base, fusee)
 
         mask = (base == fusee).flatten(start_dim=1).all(dim=1)
 
