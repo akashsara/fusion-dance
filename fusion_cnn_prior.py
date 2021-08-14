@@ -29,7 +29,7 @@ only_fusions = False
 # For PriorV1 - any name
 # For PriorV2 - "linear" in name
 # For PriorV3 - "autoencoding" in name
-experiment_name = f"fusion_cnn_autoencoding_prior_v3"
+experiment_name = f"fusion_cnn_prior_v1"
 
 mode = "discrete"
 vq_vae_experiment_name = f"vq_vae_v5.17"
@@ -44,13 +44,31 @@ vq_vae_small_conv = True  # To use the 1x1 convolution layer
 image_size = 64
 use_noise_images = True
 
-# Two Images
-prior_input_channels = 6 if "autoencoding" not in experiment_name else 3  
+# EIEO = Encoding In Encoding Out
+if "autoencoding" in experiment_name:
+    combine_model_inputs = False
+    if "eieo" in experiment_name:
+        prior_input_channels = vq_vae_embedding_dim
+        eieo = True
+    else:
+        prior_input_channels = 3
+        eieo = False
+else:
+    combine_model_inputs = True
+    if "eieo" in experiment_name:
+        prior_input_channels = vq_vae_embedding_dim * 2
+        eieo = True
+    else:
+        prior_input_channels = 6
+        eieo = False
 prior_output_channels = (
     vq_vae_num_embeddings if mode == "discrete" else vq_vae_embedding_dim
 )
-prior_input_dim = image_size
-prior_output_dim = prior_input_dim // (2 ** vq_vae_num_layers)
+prior_output_dim = image_size // (2 ** vq_vae_num_layers)
+if eieo:
+    prior_input_dim = prior_output_dim
+else:
+    prior_input_dim = image_size
 ###### Only if PriorV2 or PriorV3 ######
 prior_hidden_size = 512
 prior_max_filters = 512
@@ -162,7 +180,6 @@ vq_vae.eval()
 vq_vae.to(device)
 
 # Create Model
-combine_model_inputs = True
 if "linear" in experiment_name:
     model = models.CNNPriorV2(
         input_channels=prior_input_channels,
@@ -185,7 +202,6 @@ elif "autoencoding" in experiment_name:
         kernel_size=prior_kernel_size,
         stride=prior_stride,
     )
-    combine_model_inputs = False
 else:
     model = models.CNNPrior(
         input_channels=prior_input_channels,
@@ -247,6 +263,20 @@ for epoch in range(epochs):
                 )
             elif mode == "continuous-final_image":
                 y = fusion
+            # Get Encodings of Inputs if EIEO Model
+            if eieo:
+                target_shape = (
+                    current_batch_size,
+                    prior_output_dim,
+                    prior_output_dim,
+                    vq_vae_embedding_dim,
+                )
+                base = vq_vae.vq_vae.quantize_encoding_indices(
+                    vq_vae(base)[3], target_shape, device
+                )
+                fusee = vq_vae.vq_vae.quantize_encoding_indices(
+                    vq_vae(fusee)[3], target_shape, device
+                )
 
         # Run our model & get outputs
         if combine_model_inputs:
@@ -299,6 +329,21 @@ for epoch in range(epochs):
                 )
             elif mode == "continuous-final_image":
                 y = fusion
+
+            # Get Encodings of Inputs if EIEO Model
+            if eieo:
+                target_shape = (
+                    current_batch_size,
+                    prior_output_dim,
+                    prior_output_dim,
+                    vq_vae_embedding_dim,
+                )
+                base = vq_vae.vq_vae.quantize_encoding_indices(
+                    vq_vae(base)[3], target_shape, device
+                )
+                fusee = vq_vae.vq_vae.quantize_encoding_indices(
+                    vq_vae(fusee)[3], target_shape, device
+                )
 
             # Run our model & get outputs
             if combine_model_inputs:
@@ -376,6 +421,15 @@ with torch.no_grad():
             y = vq_vae.vq_vae.quantize_encoding_indices(encodings, target_shape, device)
         elif mode == "continuous-final_image":
             y = fusion
+
+        # Get Encodings of Inputs if EIEO Model
+        if eieo:
+            base = vq_vae.vq_vae.quantize_encoding_indices(
+                vq_vae(base)[3], target_shape, device
+            )
+            fusee = vq_vae.vq_vae.quantize_encoding_indices(
+                vq_vae(fusee)[3], target_shape, device
+            )
 
         # Run our model & get outputs
         if combine_model_inputs:
