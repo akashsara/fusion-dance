@@ -1,3 +1,5 @@
+# Splits the fusion images into train/test/val directories
+# The split is based on the split done for the original set of images.
 import os
 import random
 

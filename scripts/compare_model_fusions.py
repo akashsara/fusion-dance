@@ -1,3 +1,9 @@
+# Samples N images from the given data
+# Then for each model specified, it loads the model.
+# Generates fusions using that model.
+# And Saves.
+# Supports only Single Model Architectures.
+# So no RNNs/MultiRNNs/Fusion Priors etc.
 import os
 import sys
 

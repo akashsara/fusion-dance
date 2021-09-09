@@ -1,3 +1,7 @@
+# Samples N images from the given data
+# Load the original VQ-VAE and the prior model.
+# Only supports CNNPrior
+# Generates fusions using the models and saves.
 import os
 import sys
 
@@ -113,13 +117,12 @@ def make_prediction(
 
 if __name__ == "__main__":
     ## Config
-    data_dir = "data\\final\\standard\\val"
-    fusion_dir = "data\\backup\\japeal_renamed"
+    identifier = "val"  # Prepended to filename
+    data_dir = f"data\\pokemon\\final\\standard\\{identifier}"
+    fusion_dir = "data\\pokemon\\backup\\japeal_renamed"
     model_prefix = f"outputs\\"
     output_dir = f"data"
-    identifier = "val"  # Prepended to filename
 
-    batch_size = 64
     image_size = 64
     use_noise_images = True
     num_images = 4  # Number of fusions
@@ -133,8 +136,8 @@ if __name__ == "__main__":
     vq_vae_commitment_cost = 0.25
     vq_vae_small_conv = True  # To use the 1x1 convolution layer
 
-    mode = "continuous-final_image"
-    prior_model_name = f"fusion_cnn_prior_v2.2"
+    mode = "discrete"
+    prior_model_name = f"fusion_cnn_prior_v2"
     prior_input_channels = 6  # Two Images
     prior_output_channels = (
         vq_vae_num_embeddings if mode == "discrete" else vq_vae_embedding_dim

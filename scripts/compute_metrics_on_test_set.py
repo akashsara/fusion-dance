@@ -1,3 +1,6 @@
+# Only for CNNPrior
+# Given the test set directory
+# Load model, compute outputs and calculate MSE & SSIM
 import os
 import sys
 

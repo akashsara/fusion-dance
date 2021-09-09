@@ -24,13 +24,13 @@ epochs = 25
 batch_size = 64
 num_dataloader_workers = 0
 
-experiment_name = f"vq_vae_v1"
+experiment_name = f"vq_vae_v5.10"
 
-num_layers = 2
-num_embeddings = 512
-embedding_dim = 64
+num_layers = 0
+num_embeddings = 256
+embedding_dim = 32
 commitment_cost = 0.25
-use_max_filters = False
+use_max_filters = True
 max_filters = 512
 image_size = 64
 use_noise_images = True

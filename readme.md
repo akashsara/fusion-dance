@@ -1,6 +1,6 @@
 # Fusion Dance
 
-This is the repository for "Fusion Dance: Generating New Content via Fusion of Existing Content". The goal of this project is to generate new Pokemon by blending latent representations of different Pokemon. We work with both a convolutional autoencoder and a convolutional variational autoencoder.
+This is the repository for "Fusion Dance: Generating New Content via Fusion of Existing Content". The goal of this project is to generate new Pokemon by blending latent representations of different Pokemon. We experiment with a wide variety of models for this task.
 
 ## Abstract
 
@@ -10,8 +10,10 @@ Creating new content for video games is a time and resource-intensive task. Whil
 
 Install the required packages via `pip install -r requirements.txt`.
 
-The original data can be found in the original_data folder. The final preprocessed data used for modeling can be obtained by running the `preprocess.py` script.
+The original data can be found in the original_data folder. The final preprocessed data used for modeling can be obtained by running the `preprocess.py` script. Fusion data can be obtained from the [FusionSprites repository](https://github.com/Aegide/FusionSprites). Note that you will need to run the `fix_infinite_fusion_filenames.py` to fix the filenames.
 
-To train the models, fill up the config section of the respective notebook and run. MSE and SSIM scores are computed in the notebooks. We use the [pytorch_fid](https://github.com/mseitzer/pytorch-fid) package to compute the FID scores.
+To train the models, fill up the config section of the respective model script and run. 
 
-To play with/generate fusions, use the notebook from the fusions folder.
+<!-- MSE and SSIM scores are computed in the notebooks. We use the [pytorch_fid](https://github.com/mseitzer/pytorch-fid) package to compute the FID scores. -->
+
+All models automatically generate and save outputs for the test set (including fusions if the test set uses them). 

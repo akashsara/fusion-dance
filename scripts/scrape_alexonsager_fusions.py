@@ -1,3 +1,4 @@
+# Script to scrape fusions from AlexOnsager
 import requests
 import time
 from PIL import Image
@@ -24,7 +25,7 @@ for base in range(1, 152):
         else:
             failed.append(f"{base}.{fusion}")
         # Respect the website; don't DoS it
-        time.sleep(0.5)
+        time.sleep(1)
 
 print("Failed Downloads:")
 print(failed)

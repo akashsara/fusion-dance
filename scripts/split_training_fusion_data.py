@@ -1,3 +1,14 @@
+# Make a small subset of the training data
+# This is removed entirely and kept aside for testing purposes.
+# We use the paritioned training data for this as it is the largest.
+# Note that this must be done before training any models.
+# This separates out 5 sets of Pokemon each for:
+# Category 1: A Pokemon whose base is not known.
+# Category 2: A Pokemon whose fusee is not known.
+# Category 3: A Pokemon whose base & fusee are not known.
+# The idea is to see if the model can learn to fuse Pokemon which are not 
+# involved in the training process at all (category 3). 
+# The first two categories are smaller tests for this purpose.
 import os
 import random
 

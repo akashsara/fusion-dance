@@ -1,3 +1,4 @@
+# Simple Script to see how the images look when pixellated
 import cv2 as cv
 import numpy as np
 import os

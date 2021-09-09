@@ -1,3 +1,5 @@
+# Simply renames the misnamed files
+# By using the mapping csv 
 import pandas as pd
 import os
 import shutil
