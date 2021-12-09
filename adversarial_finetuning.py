@@ -10,7 +10,7 @@ from tqdm import tqdm
 import utils.data as data
 import utils.graphics as graphics
 import utils.loss as loss
-import models
+from models import vqvae, cnn_discriminator, cnn_prior
 
 seed = 42
 np.random.seed(seed)
@@ -151,7 +151,7 @@ test_dataloader = torch.utils.data.DataLoader(
 ################################################################################
 
 # Create & Load VQVAE Model
-vq_vae = models.VQVAE(
+vq_vae = vqvae.VQVAE(
     num_layers=vq_vae_num_layers,
     input_image_dimensions=image_size,
     small_conv=vq_vae_small_conv,
@@ -167,7 +167,7 @@ vq_vae.to(device)
 print(vq_vae)
 
 # Create & Load Discriminator Model
-discriminator = models.CNNDiscriminator(
+discriminator = cnn_discriminator.CNNDiscriminator(
     input_channels=discriminator_input_channels,
     input_dim=discriminator_input_dim,
     num_filters=discriminator_num_filters,
@@ -179,7 +179,7 @@ discriminator.to(device)
 print(discriminator)
 
 # Create Model
-model = models.CNNPrior(
+model = cnn_prior.CNNPrior(
     input_channels=prior_input_channels,
     output_channels=prior_output_channels,
     input_dim=prior_input_dim,

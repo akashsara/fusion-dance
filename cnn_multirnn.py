@@ -10,8 +10,7 @@ from PIL import Image
 
 import utils.data as data
 import utils.graphics as graphics
-import utils.loss as loss
-import models
+from models import cnn_rnn, vqvae
 
 seed = 42
 np.random.seed(seed)
@@ -147,7 +146,7 @@ test_dataloader = torch.utils.data.DataLoader(
 ################################################################################
 
 # Create & Load VQVAE Model
-vq_vae = models.VQVAE(
+vq_vae = cnn_rnn.VQVAE(
     num_layers=vq_vae_num_layers,
     input_image_dimensions=image_size,
     small_conv=vq_vae_small_conv,
@@ -162,7 +161,7 @@ vq_vae.eval()
 vq_vae.to(device)
 
 # Create Model
-model = models.CNN_MultiRNN(
+model = cnn_rnn.CNN_MultiRNN(
     num_classes=prior_num_classes,
     num_rnns=prior_num_rnns,
     input_image_size=prior_input_image_size,

@@ -10,7 +10,7 @@ import sys
 import torch
 
 sys.path.append("./")
-import models
+from models import vqvae
 from utils import data, graphics
 
 
@@ -120,7 +120,7 @@ if get_base_model_predictions:
     transform = data.image2tensor_resize(image_size)
 
     # Load Model
-    model = models.VQVAE(
+    model = vqvae.VQVAE(
         num_layers=vq_vae_num_layers,
         input_image_dimensions=image_size,
         small_conv=vq_vae_small_conv,

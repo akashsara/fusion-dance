@@ -11,7 +11,7 @@ import torch
 from PIL import Image
 
 sys.path.append("./")
-import models
+from models import vqvae, cnn_prior
 from utils import data, graphics
 
 
@@ -153,7 +153,7 @@ if __name__ == "__main__":
     transform = data.image2tensor_resize(image_size)
 
     ## Load VQVAE Model
-    model = models.VQVAE(
+    model = vqvae.VQVAE(
         num_layers=vq_vae_num_layers,
         input_image_dimensions=image_size,
         small_conv=vq_vae_small_conv,
@@ -168,7 +168,7 @@ if __name__ == "__main__":
     model.eval()
 
     ## Load Prior
-    prior = models.CNNPrior(
+    prior = cnn_prior.CNNPrior(
         input_channels=prior_input_channels,
         output_channels=prior_output_channels,
         input_dim=prior_input_dim,

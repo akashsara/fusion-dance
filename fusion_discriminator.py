@@ -11,7 +11,7 @@ from sklearn.metrics import classification_report
 import utils.data as data
 import utils.graphics as graphics
 import utils.loss as loss
-import models
+from models import cnn_discriminator
 
 seed = 42
 np.random.seed(seed)
@@ -97,7 +97,7 @@ test_dataloader = torch.utils.data.DataLoader(
 ################################################################################
 
 # Create Model
-model = models.CNNDiscriminator(
+model = cnn_discriminator.CNNDiscriminator(
     input_channels=input_channels,
     input_dim=input_dim,
     num_filters=num_filters,

@@ -10,8 +10,7 @@ from tqdm import tqdm
 import utils.data as data
 import utils.graphics as graphics
 import utils.loss as loss
-import models
-
+from models import cnn_enhancer
 seed = 42
 np.random.seed(seed)
 _ = torch.manual_seed(seed)
@@ -109,7 +108,7 @@ test_dataloader = torch.utils.data.DataLoader(
 ################################################################################
 
 # Create Enhancer
-model = models.ImageEnhancerCNN(input_channels, num_filters, num_layers, use_4by4_conv)
+model = cnn_enhancer.ImageEnhancerCNN(input_channels, num_filters, num_layers, use_4by4_conv)
 model.to(device)
 print(model)
 

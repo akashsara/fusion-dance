@@ -15,7 +15,7 @@ from tqdm import tqdm
 import utils.data as data
 import utils.graphics as graphics
 import utils.loss as loss
-import models
+from models import vae_gan
 
 seed = 42
 np.random.seed(seed)
@@ -122,7 +122,7 @@ sample = data.get_samples_from_data(val_data, 16)
 ################################################################################
 
 # Create Model
-encoder = models.VAEGANEncoder(
+encoder = vae_gan.VAEGANEncoder(
     max_filters=vae_max_filters,
     num_layers=vae_num_layers,
     input_image_dimensions=image_size,
@@ -130,7 +130,7 @@ encoder = models.VAEGANEncoder(
     small_conv=vae_small_conv,
 )
 decoder_hidden_dim, decoder_image_size = encoder.get_flattened_size(image_size)
-decoder = models.VAEGANDecoder(
+decoder = vae_gan.VAEGANDecoder(
     hidden_dim=decoder_hidden_dim,
     image_size=decoder_image_size,
     max_filters=vae_max_filters,
@@ -138,7 +138,7 @@ decoder = models.VAEGANDecoder(
     latent_dim=vae_latent_dim,
     small_conv=vae_small_conv,
 )
-discriminator = models.VAEGANDiscriminator(
+discriminator = vae_gan.VAEGANDiscriminator(
     max_filters=gan_max_filters,
     num_layers=gan_num_layers,
     input_image_dimensions=image_size,

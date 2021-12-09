@@ -10,7 +10,7 @@ from tqdm import tqdm
 import utils.data as data
 import utils.graphics as graphics
 import utils.loss as loss
-import models
+from models import vae
 
 seed = 42
 np.random.seed(seed)
@@ -115,7 +115,7 @@ sample = data.get_samples_from_data(val_data, 16)
 ################################################################################
 
 # Create Model
-model = models.ConvolutionalVAE(
+model = vae.ConvolutionalVAE(
     max_filters=max_filters,
     num_layers=num_layers,
     input_image_dimensions=image_size,

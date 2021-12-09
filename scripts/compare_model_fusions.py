@@ -14,7 +14,7 @@ from numpy.random import f
 from PIL import Image
 
 sys.path.append("./")
-import models
+from models import vqvae, autoencoder, vae
 from utils import data, graphics
 
 
@@ -112,7 +112,7 @@ def load_model(
     device,
 ):
     if model_type == "vae":
-        model = models.ConvolutionalVAE(
+        model = vae.ConvolutionalVAE(
             max_filters=max_filters,
             num_layers=num_layers,
             input_image_dimensions=image_size,
@@ -120,7 +120,7 @@ def load_model(
             small_conv=small_conv,
         )
     elif model_type == "dual_input_vae":
-        model = models.FusionVAE(
+        model = vae.FusionVAE(
             max_filters=max_filters,
             num_layers=num_layers,
             input_image_dimensions=image_size,
@@ -131,7 +131,7 @@ def load_model(
         num_embeddings = model_parameters["K"]
         embedding_dim = model_parameters["D"]
         commitment_cost = model_parameters["commitment_cost"]
-        model = models.VQVAE(
+        model = vqvae.VQVAE(
             num_layers=num_layers,
             input_image_dimensions=image_size,
             small_conv=small_conv,
@@ -140,7 +140,7 @@ def load_model(
             commitment_cost=commitment_cost,
         )
     elif model_type == "dual_input_autoencoder":
-        model = models.FusionAE(
+        model = autoencoder.FusionAE(
             max_filters=max_filters,
             num_layers=num_layers,
             input_image_dimensions=image_size,
@@ -148,7 +148,7 @@ def load_model(
             small_conv=small_conv,
         )
     else:
-        model = models.ConvolutionalAE(
+        model = autoencoder.ConvolutionalAE(
             max_filters=max_filters,
             num_layers=num_layers,
             input_image_dimensions=image_size,
