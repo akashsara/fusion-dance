@@ -1,7 +1,8 @@
-# Splits the fusion images into train/test/val directories
-# The split is based on the split done for the original set of images.
+"""
+Splits the fusion images into train/test/val directories.
+The split is based on the split done for the original set of images.
+"""
 import os
-import random
 
 def remove_3_digit(num):
     if '-' in num:
@@ -10,9 +11,9 @@ def remove_3_digit(num):
         return "-".join(stuff)
     return str(int(num))
 
-fusions_dir = "data\\japeal"
-original_data_dir = "data\\training"
-output_dir = "data\\fusions"
+fusions_dir = "../../data/japeal"
+original_data_dir = "../../data/training"
+output_dir = "../../data/fusions"
 
 # Remove New Gen Fusions
 for folder in os.listdir(fusions_dir):

@@ -4,8 +4,8 @@ import pandas as pd
 import os
 import shutil
 
-target_dir = "data\\Infinite Fusion"
-df = pd.read_csv("utils\\mapping.csv")
+target_dir = "../../data/Pokemon/Japeal"
+df = pd.read_csv("mapping.csv")
 mapping = {str(x["Num"]): str(x["TrueNum"]) for x in df.to_dict(orient="records")}
 
 errors = []
