@@ -1,9 +1,12 @@
-# Samples N images from the given data
-# Then for each model specified, it loads the model.
-# Generates fusions using that model.
-# And Saves.
-# Supports only Single Model Architectures.
-# So no RNNs/MultiRNNs/Fusion Priors etc.
+"""
+Samples N fusions from the given data. That is, it gets the corresponding base
+and fusee images along with the fusion image. This is done N times.
+Then for each model specified, it loads the model.
+Generates fusions using that model and the base + fusee image.
+And Saves.
+NOTE: Supports only Single Model Architectures.
+Use compare_model_fusions_prior for the multi-model architecture.
+"""
 import os
 import sys
 
@@ -51,7 +54,7 @@ def pick_images(dir, num_images=8, max_tries=10000):
                     choice = filename
                     break
         if choice not in filenames:
-            print("MEEP MORP")
+            print(f"MEEP MORP INVALID FILE: {choice}")
         selected.append(choice)
         unique_ids.append(id_)
     selected = [list(x) for x in np.array(selected).reshape(-1, 2)]
@@ -160,6 +163,44 @@ def load_model(
     return model
 
 
+def get_fusion(model, model_type):
+    if model_type == "vae":
+        # Get Model Outputs
+        bases_out, _, _ = model(bases)
+        fusees_out, _, _ = model(fusees)
+        # Get Fusion Outputs
+        base_mu, base_log_var = model.get_latent_variables(bases)
+        fusee_mu, fusee_log_var = model.get_latent_variables(fusees)
+        mu = (base_mu * 0.4) + (fusee_mu * 0.6)
+        log_var = (base_log_var * 0.4) + (fusee_log_var * 0.6)
+        midpoint_embedding = model.reparameterize(mu, log_var)
+        fusions_out = model.decoder(midpoint_embedding)
+    elif model_type == "autoencoder":
+        # Get Model Outputs
+        bases_out = model(bases)
+        fusees_out = model(fusees)
+        # Get Fusion Outputs
+        # Get Embeddings of Base Images
+        base_embedding = model.encoder(bases) * 0.4
+        fusee_embedding = model.encoder(fusees) * 0.6
+        # Get Midpoint -> Decoder -> Fusion
+        midpoint_embedding = base_embedding + fusee_embedding
+        fusions_out = model.decoder(midpoint_embedding)
+    # Group the images together
+    elif model_type == "dual_input_vae":
+        bases_out, _, _ = model(bases, bases)
+        fusees_out, _, _ = model(fusees, fusees)
+        fusions_out, _, _ = model(bases, fusees)
+    elif model_type == "dual_input_autoencoder":
+        bases_out = model(bases, bases)
+        fusees_out = model(fusees, fusees)
+
+    fusion_sample = torch.stack(
+        (bases_out.cpu(), fusees_out.cpu(), fusions_out.cpu()), dim=1
+    ).flatten(end_dim=1)
+    return fusion_sample
+
+
 gpu = torch.cuda.is_available()
 device = torch.device("cuda" if gpu else "cpu")
 
@@ -173,7 +214,6 @@ num_layers = 4
 max_filters = 512
 image_size = 64
 small_conv = True  # To use the 1x1 convolution layer
-vq_vae_fusion_version = 3
 
 # model_name: latent_dim
 model_config = {
@@ -230,75 +270,8 @@ for model_name, model_parameters in model_config.items():
     )
 
     with torch.no_grad():
-        if model_type == "vae":
-            # Get Model Outputs
-            bases_out, _, _ = model(bases)
-            fusees_out, _, _ = model(fusees)
-            # Get Fusion Outputs
-            base_mu, base_log_var = model.get_latent_variables(bases)
-            fusee_mu, fusee_log_var = model.get_latent_variables(fusees)
-            mu = (base_mu * 0.4) + (fusee_mu * 0.6)
-            log_var = (base_log_var * 0.4) + (fusee_log_var * 0.6)
-            midpoint_embedding = model.reparameterize(mu, log_var)
-            fusions_out = model.decoder(midpoint_embedding)
-        elif model_type == "dual_input_vae":
-            bases_out, _, _ = model(bases, bases)
-            fusees_out, _, _ = model(fusees, fusees)
-            fusions_out, _, _ = model(bases, fusees)
-        elif model_type == "dual_input_autoencoder":
-            bases_out = model(bases, bases)
-            fusees_out = model(fusees, fusees)
-            fusions_out = model(bases, fusees)
-        elif model_type == "vq_vae":
-            # Get Model Outputs
-            _, bases_out, _, _ = model(bases)
-            _, fusees_out, _, _ = model(fusees)
-            # Get Fusion Outputs
-            base_embedding = model.encoder(bases)
-            fusee_embedding = model.encoder(fusees)
+        fusion_sample = get_fusion(model, model_type)
 
-            if vq_vae_fusion_version == 1:
-                # Version 1
-                midpoint_embedding = (base_embedding * 0.4) + (fusee_embedding * 0.6)
-                _, quantized, _, _ = model.vq_vae(midpoint_embedding)
-                fusions_out = model.decoder(quantized)
-            elif vq_vae_fusion_version == 2:
-                # Version 2
-                _, base_quantized, _, _ = model.vq_vae(base_embedding)
-                _, fusee_quantized, _, _ = model.vq_vae(fusee_embedding)
-                midpoint_quantized = (base_quantized * 0.4) + (fusee_quantized * 0.6)
-                fusions_out = model.decoder(midpoint_quantized)
-            elif vq_vae_fusion_version == 3:
-                # Version 3
-                _, _, _, base_encoding_indices = model.vq_vae(base_embedding)
-                _, _, _, fusee_encoding_indices = model.vq_vae(fusee_embedding)
-                fused = torch.zeros_like(base_encoding_indices)
-                for i, _ in enumerate(fused):
-                    if torch.rand(1) < 0.5:
-                        fused[i] = base_encoding_indices[i]
-                    else:
-                        fused[i] = fusee_encoding_indices[i]
-                height = np.sqrt(fused.shape[0] / bases.shape[0]).astype(np.int32)
-                width = height
-                target_shape = (bases.shape[0], height, width, model_parameters["D"])
-                fusions_out = model.quantize_and_decode(fused, target_shape, device)
-
-        else:
-            # Get Model Outputs
-            bases_out = model(bases)
-            fusees_out = model(fusees)
-            # Get Fusion Outputs
-            # Get Embeddings of Base Images
-            base_embedding = model.encoder(bases) * 0.4
-            fusee_embedding = model.encoder(fusees) * 0.6
-            # Get Midpoint -> Decoder -> Fusion
-            midpoint_embedding = base_embedding + fusee_embedding
-            fusions_out = model.decoder(midpoint_embedding)
-
-        # Group the images together
-        fusion_sample = torch.stack(
-            (bases_out.cpu(), fusees_out.cpu(), fusions_out.cpu()), dim=1
-        ).flatten(end_dim=1)
     # Plot
     fig, axis = graphics.make_grid((model_name, fusion_sample), 4, 3)
     # Save

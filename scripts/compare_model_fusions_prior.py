@@ -1,7 +1,9 @@
-# Samples N images from the given data
-# Load the original VQ-VAE and the prior model.
-# Only supports CNNPrior
-# Generates fusions using the models and saves.
+"""
+Samples N images from the given data
+Load the original VQ-VAE and the prior model.
+Only supports CNNPrior
+Generates fusions using the models and saves.
+"""
 import os
 import sys
 
@@ -118,8 +120,8 @@ def make_prediction(
 if __name__ == "__main__":
     ## Config
     identifier = "val"  # Prepended to filename
-    data_dir = f"data\\pokemon\\final\\standard\\{identifier}"
-    fusion_dir = "data\\pokemon\\backup\\japeal_renamed"
+    data_dir = f"data\\Pokemon\\final\\standard\\{identifier}"
+    fusion_dir = "data\\Pokemon\\japeal_renamed"
     model_prefix = f"outputs\\"
     output_dir = f"data"
 

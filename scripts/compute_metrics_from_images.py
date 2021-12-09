@@ -1,5 +1,7 @@
-# Given two directories, source and target
-# Compute the MSE & SSIM scores between the images in them.
+"""
+Given two directories, source and target
+Compute the MSE & SSIM scores between the images in them.
+"""
 import os
 import sys
 

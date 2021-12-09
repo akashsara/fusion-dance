@@ -1,6 +1,8 @@
-# Compares generated sprites of the specified models
-# Does NOT load models or generate sprites.
-# Only exception is the base model.
+"""
+Compares generated sprites of the specified models
+Does NOT load models or generate sprites.
+Only exception is the base model.
+"""
 
 import numpy as np
 import matplotlib.pyplot as plt
