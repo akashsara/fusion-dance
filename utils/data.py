@@ -8,6 +8,10 @@ import os
 
 
 class CustomDataset(torch.utils.data.Dataset):
+    """
+    Requires the dataset as a dict of form filename:image.
+    Returns filename, image
+    """
     def __init__(self, dataset=None, transform=None):
         self.dataset = list(dataset.values())
         self.keys = list(dataset.keys())
@@ -24,7 +28,12 @@ class CustomDataset(torch.utils.data.Dataset):
         return len(self.dataset)
 
 
-class CustomDatasetV2(torch.utils.data.Dataset):
+class CustomDatasetNoMemory(torch.utils.data.Dataset):
+    """
+    Requires the path to a dataset.
+    Essentially the same as above but it doesn't load all the data to memory.
+    Returns filename, image.
+    """
     def __init__(self, dataset_directory, transform):
         self.dataset_path = dataset_directory
         self.all_images = os.listdir(dataset_directory)
@@ -34,14 +43,22 @@ class CustomDatasetV2(torch.utils.data.Dataset):
         filename = self.all_images[index]
         image_path = os.path.join(self.dataset_path, filename)
         image = Image.open(image_path).convert("RGB")
-        fusion = self.transform(image)
-        return filename, fusion
+        processed = self.transform(image)
+        return filename, processed
 
     def __len__(self):
         return len(self.all_images)
 
 
-class CustomDatasetV3(torch.utils.data.Dataset):
+class CustomDatasetWithLabels(torch.utils.data.Dataset):
+    """
+    Unlike the previous CustomDatasets, 
+    this requires both a feature dir and a labels dir.
+    Essentially we use this for tasks where we want to transform 
+    the input feature image into the output label image.
+    I.E. our FusionEnhancer.
+    Returns filename, feature_image, label_image
+    """
     def __init__(self, features_directory, labels_directory, transform):
         self.features_directory = features_directory
         self.labels_directory = labels_directory

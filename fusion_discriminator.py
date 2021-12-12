@@ -66,9 +66,9 @@ if not os.path.exists(output_dir):
 # Preprocess & Create Data Loaders
 transform = data.image2tensor_resize(image_size)
 
-train_data = data.CustomDatasetV2(train_data_folder, transform)
-val_data = data.CustomDatasetV2(val_data_folder, transform)
-test_data = data.CustomDatasetV2(test_data_folder, transform)
+train_data = data.CustomDatasetNoMemory(train_data_folder, transform)
+val_data = data.CustomDatasetNoMemory(val_data_folder, transform)
+test_data = data.CustomDatasetNoMemory(test_data_folder, transform)
 
 train_dataloader = torch.utils.data.DataLoader(
     train_data,

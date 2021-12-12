@@ -77,9 +77,9 @@ if not os.path.exists(output_dir):
 # Preprocess & Create Data Loaders
 transform = data.image2tensor_resize(image_size)
 
-train_data = data.CustomDatasetV3(train_features, train_labels, transform)
-val_data = data.CustomDatasetV3(val_features, val_labels, transform)
-test_data = data.CustomDatasetV3(test_features, test_labels, transform)
+train_data = data.CustomDatasetWithLabels(train_features, train_labels, transform)
+val_data = data.CustomDatasetWithLabels(val_features, val_labels, transform)
+test_data = data.CustomDatasetWithLabels(test_features, test_labels, transform)
 
 train_dataloader = torch.utils.data.DataLoader(
     train_data,
