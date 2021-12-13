@@ -2,8 +2,8 @@
 .vscode/
 __pycache__/
 env/
+data/
 data/Pokemon/*
-data/MNIST/
 data/TinyHero/*
 !data/Pokemon/original_data.zip
 !data/TinyHero/source.txt
