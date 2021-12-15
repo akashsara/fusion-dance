@@ -76,24 +76,24 @@ def make_image_grid(images, title):
     return fig, axis
 
 
-base_dir = "data\\pokemon\\final\\fusions\\test"
+base_dir = "data\\pokemon\\final\\standard\\test"
 output_dir = "data\\"
 model_prefix = f"outputs\\"
 num_images = 16
 model_list = [
-    "cnn_multirnn_v5.4",
-    "cnn_multirnn_v5.5",
-    "cnn_multirnn_v5.6",
-    "fusion_cnn_prior_v6",
-    "fusion_cnn_linear_prior_v1",
-    "fusion_cnn_autoencoding_prior_v2",
-    "fusion_cnn_prior_eieo_v1",
+    "gated_pixelcnn_v1",
+    "gated_pixelcnn_v1.1",
+    "gated_pixelcnn_v1.2",
+    "gated_pixelcnn_v1.3",
+    "gated_pixelcnn_v1.4",
+    "gated_pixelcnn_v1.5",
 ]
 is_fusions = "fusions" in base_dir
 output_prefix = "fusions_" if is_fusions else ""
+use_base_model = False
+use_base_dir = False
 
 # VQ-VAE Config
-get_base_model_predictions = True
 image_size = 64
 model_prefix = f"outputs\\"
 vq_vae_model_name = f"vq_vae_v5.16"
@@ -105,15 +105,15 @@ vq_vae_embedding_dim = 64
 vq_vae_commitment_cost = 0.25
 vq_vae_small_conv = True  # To use the 1x1 convolution layer
 
-images_to_load = pick_images(base_dir, num_images, fusions=is_fusions)
+if use_base_dir:
+    images_to_load = pick_images(base_dir, num_images, fusions=is_fusions)
+    caption = output_prefix + "base"
+    images = get_images(base_dir, images_to_load)
+    fig, axis = make_image_grid(images, caption)
+    plt.savefig(os.path.join(output_dir, f"{caption}.png"))
+    print(caption)
 
-caption = output_prefix + "base"
-images = get_images(base_dir, images_to_load)
-fig, axis = make_image_grid(images, caption)
-plt.savefig(os.path.join(output_dir, f"{caption}.png"))
-print(caption)
-
-if get_base_model_predictions:
+if use_base_model:
     # Setup Device
     gpu = torch.cuda.is_available()
     device = torch.device("cuda" if gpu else "cpu")
@@ -150,6 +150,8 @@ if get_base_model_predictions:
 
 for model in model_list:
     model_dir = os.path.join(model_prefix, model, "generated")
+    if not use_base_dir:
+        images_to_load = pick_images(model_dir, num_images, fusions=is_fusions)
     images = get_images(model_dir, images_to_load)
     fig, axis = make_image_grid(images, model)
     plt.savefig(os.path.join(output_dir, f"{output_prefix}{model}.png"))
