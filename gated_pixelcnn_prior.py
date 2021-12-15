@@ -239,7 +239,16 @@ for epoch in range(epochs):
 graphics.draw_loss(all_train_loss, all_val_loss, loss_output_path, mode="autoencoder")
 
 # Save Model
-torch.save(model.state_dict(), model_output_path)
+torch.save(
+    {
+        "epoch": epoch,
+        "model_state_dict": model.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "train_loss": all_train_loss,
+        "val_loss": all_val_loss,
+    },
+    model_output_path,
+)
 
 # Evaluation Time
 model.eval()
@@ -272,7 +281,7 @@ print(f"Test Loss: {test_loss}")
 
 # Generate samples
 target_shape = (sample_batch_size, input_dim, input_dim, vq_vae_embedding_dim)
-image_shape=(sample_batch_size, input_channels, input_dim, input_dim)
+image_shape = (sample_batch_size, input_channels, input_dim, input_dim)
 for i in range(num_sample_batches):
     # Sample from model
     sample = model.sample(image_shape, device)
