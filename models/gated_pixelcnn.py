@@ -23,13 +23,18 @@ class MaskedConvolution(nn.Module):
         # For simplicity: calculate padding automatically
         kernel_size = (mask.shape[0], mask.shape[1])
         dilation = 1 if "dilation" not in kwargs else kwargs["dilation"]
-        padding = tuple([dilation * (kernel_size[i] - 1) // 2 for i in range(2)])
-        # Actual convolution
-        self.conv = nn.Conv2d(c_in, c_out, kernel_size, padding=padding, **kwargs)
+        # manually calculate padding if dilation exists
+        if dilation > 1:
+            padding = tuple([dilation * (kernel_size[i] - 1) // 2 for i in range(2)])
+            # Actual convolution
+            self.conv = nn.Conv2d(c_in, c_out, kernel_size, padding=padding, **kwargs)
+        else:
+            # Actual convolution
+            self.conv = nn.Conv2d(c_in, c_out, kernel_size, padding="same", **kwargs)
 
         # Buffers are simply tensors that are a part of the model
         # But are not treated as parameters.
-        # Similar to the running mean tracked in batch norm. 
+        # Similar to the running mean tracked in batch norm.
         self.register_buffer("mask", mask[None, None])
 
     def forward(self, x):
@@ -39,8 +44,9 @@ class MaskedConvolution(nn.Module):
 
 class VerticalStackConvolution(MaskedConvolution):
     def __init__(self, c_in, c_out, kernel_size=3, mask_center=False, **kwargs):
-        # Mask out all pixels below. For efficiency, we could also reduce the kernel
-        # size in height, but for simplicity, we stick with masking here.
+        # Mask out all pixels below.
+        # For efficiency, we could also reduce the kernel size in height,
+        # but for simplicity, we stick with masking here.
         mask = torch.ones(kernel_size, kernel_size)
         mask[kernel_size // 2 + 1 :, :] = 0
 
@@ -53,8 +59,9 @@ class VerticalStackConvolution(MaskedConvolution):
 
 class HorizontalStackConvolution(MaskedConvolution):
     def __init__(self, c_in, c_out, kernel_size=3, mask_center=False, **kwargs):
-        # Mask out all pixels on the left. Note that our kernel has a size of 1
-        # in height because we only look at the pixel in the same row.
+        # Mask out all pixels on the left.
+        # Note that our kernel has a size of 1 in height because
+        # we only look at the pixel in the same row.
         mask = torch.ones(1, kernel_size)
         mask[0, kernel_size // 2 + 1 :] = 0
 
@@ -101,22 +108,28 @@ class PixelCNN(nn.Module):
         self.num_classes = num_classes
 
         # Initial convolutions skipping the center pixel
-        self.conv_vstack = VerticalStackConvolution(c_in, c_hidden, kernel_size=kernel_size, mask_center=True)
-        self.conv_hstack = HorizontalStackConvolution(c_in, c_hidden, kernel_size=kernel_size, mask_center=True)
+        self.conv_vstack = VerticalStackConvolution(
+            c_in, c_hidden, kernel_size=kernel_size, mask_center=True
+        )
+        self.conv_hstack = HorizontalStackConvolution(
+            c_in, c_hidden, kernel_size=kernel_size, mask_center=True
+        )
         # Convolution block of PixelCNN. We use dilation instead of downscaling
         self.conv_layers = nn.ModuleList(
             [
-                GatedMaskedConv(c_hidden, kernel_size=kernel_size),
+                GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=1),
                 GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=2),
-                GatedMaskedConv(c_hidden, kernel_size=kernel_size),
+                GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=1),
                 GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=4),
-                GatedMaskedConv(c_hidden, kernel_size=kernel_size),
+                GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=1),
                 GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=2),
-                GatedMaskedConv(c_hidden, kernel_size=kernel_size),
+                GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=1),
             ]
         )
         # Output classification convolution (1x1)
-        self.conv_out = nn.Conv2d(c_hidden, c_in * self.num_classes, kernel_size=1, padding=0)
+        self.conv_out = nn.Conv2d(
+            c_hidden, c_in * self.num_classes, kernel_size=1, padding=0
+        )
 
     def forward(self, x):
         """
@@ -139,13 +152,17 @@ class PixelCNN(nn.Module):
 
         # Output dimensions: [Batch, Classes, Channels, Height, Width]
         out = out.reshape(
-            out.shape[0], self.num_classes, out.shape[1] // self.num_classes, out.shape[2], out.shape[3]
+            out.shape[0],
+            self.num_classes,
+            out.shape[1] // self.num_classes,
+            out.shape[2],
+            out.shape[3],
         )
         return out
 
     def calc_likelihood(self, x):
         """
-        bits per dimension (bpd) is motivated from an information theory 
+        bits per dimension (bpd) is motivated from an information theory
         perspective and describes how many bits we would need to encode a
         particular example in our modeled distribution. The less bits we need,
         the more likely the example in our distribution. When we test for the
@@ -155,8 +172,8 @@ class PixelCNN(nn.Module):
         """
         # Forward pass with bpd likelihood calculation
         pred = self.forward(x)
-        nll = F.cross_entropy(pred, x, reduction='none')
-        bpd = nll.mean(dim=[1,2,3]) * np.log2(np.exp(1))
+        nll = F.cross_entropy(pred, x, reduction="none")
+        bpd = nll.mean(dim=[1, 2, 3]) * np.log2(np.exp(1))
         return bpd.mean()
 
     @torch.no_grad()
