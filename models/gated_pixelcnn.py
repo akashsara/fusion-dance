@@ -103,7 +103,7 @@ class GatedMaskedConv(nn.Module):
 
 
 class PixelCNN(nn.Module):
-    def __init__(self, c_in, c_hidden, num_classes, kernel_size=3):
+    def __init__(self, c_in, c_hidden, num_classes, kernel_size=3, use_dilation=True):
         super().__init__()
         self.num_classes = num_classes
 
@@ -114,18 +114,31 @@ class PixelCNN(nn.Module):
         self.conv_hstack = HorizontalStackConvolution(
             c_in, c_hidden, kernel_size=kernel_size, mask_center=True
         )
-        # Convolution block of PixelCNN. We use dilation instead of downscaling
-        self.conv_layers = nn.ModuleList(
-            [
-                GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=1),
-                GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=2),
-                GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=1),
-                GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=4),
-                GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=1),
-                GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=2),
-                GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=1),
-            ]
-        )
+        if use_dilation:
+            # Convolution block of PixelCNN. We use dilation instead of downscaling
+            self.conv_layers = nn.ModuleList(
+                [
+                    GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=1),
+                    GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=2),
+                    GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=1),
+                    GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=4),
+                    GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=1),
+                    GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=2),
+                    GatedMaskedConv(c_hidden, kernel_size=kernel_size, dilation=1),
+                ]
+            )
+        else:
+            self.conv_layers = nn.ModuleList(
+                [
+                    GatedMaskedConv(c_hidden, kernel_size=kernel_size),
+                    GatedMaskedConv(c_hidden, kernel_size=kernel_size),
+                    GatedMaskedConv(c_hidden, kernel_size=kernel_size),
+                    GatedMaskedConv(c_hidden, kernel_size=kernel_size),
+                    GatedMaskedConv(c_hidden, kernel_size=kernel_size),
+                    GatedMaskedConv(c_hidden, kernel_size=kernel_size),
+                    GatedMaskedConv(c_hidden, kernel_size=kernel_size),
+                ]
+            )
         # Output classification convolution (1x1)
         self.conv_out = nn.Conv2d(
             c_hidden, c_in * self.num_classes, kernel_size=1, padding=0

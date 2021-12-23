@@ -48,6 +48,7 @@ kernel_size = 3
 sample_batch_size = batch_size
 num_sample_batches = 5
 use_bits_per_dimension_loss = False
+use_dilation = True
 
 # Data Config
 data_prefix = "data\\pokemon\\final\\standard"
@@ -142,6 +143,7 @@ model = gated_pixelcnn.PixelCNN(
     c_hidden=hidden_channels,
     num_classes=num_classes,
     kernel_size=kernel_size,
+    use_dilation=use_dilation,
 )
 model.to(device)
 print(model)
