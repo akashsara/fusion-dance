@@ -6,11 +6,11 @@ import torch
 import torch.nn as nn
 import pytorch_msssim
 from tqdm import tqdm
+from PIL import Image
 
 import utils.data as data
 import utils.graphics as graphics
-import utils.loss as loss
-from models import vqvae, cnn_prior
+from models import cnn_rnn, vqvae
 
 seed = 42
 np.random.seed(seed)
@@ -20,65 +20,46 @@ _ = torch.manual_seed(seed)
 #################################### Config ####################################
 ################################################################################
 learning_rate = 1e-4
-epochs = 5
+epochs = 10
 batch_size = 64
 num_dataloader_workers = 0
 
-only_fusions = False
-
-# For PriorV1 - any name
-# For PriorV2 - "linear" in name
-# For PriorV3 - "autoencoding" in name
-experiment_name = f"fusion_cnn_prior_v1"
-
-mode = "discrete"
-vq_vae_experiment_name = f"vq_vae_v5.17"
-vq_vae_num_layers = 2
-vq_vae_max_filters = 512
-vq_vae_use_max_filters = True
-vq_vae_num_embeddings = 1024
-vq_vae_embedding_dim = 64
-vq_vae_commitment_cost = 0.25
-vq_vae_small_conv = True  # To use the 1x1 convolution layer
-
 image_size = 64
 use_noise_images = True
+only_fusions = False
 
-# EIEO = Encoding In Encoding Out
-if "autoencoding" in experiment_name:
-    combine_model_inputs = False
-    if "eieo" in experiment_name:
-        prior_input_channels = vq_vae_embedding_dim
-        eieo = True
-    else:
-        prior_input_channels = 3
-        eieo = False
-else:
-    combine_model_inputs = True
-    if "eieo" in experiment_name:
-        prior_input_channels = vq_vae_embedding_dim * 2
-        eieo = True
-    else:
-        prior_input_channels = 6
-        eieo = False
-prior_output_channels = (
-    vq_vae_num_embeddings if mode == "discrete" else vq_vae_embedding_dim
-)
-prior_output_dim = image_size // (2 ** vq_vae_num_layers)
-if eieo:
-    prior_input_dim = prior_output_dim
-else:
-    prior_input_dim = image_size
-###### Only if PriorV2 or PriorV3 ######
-prior_hidden_size = 512
-prior_max_filters = 512
-prior_kernel_size = 4
-prior_stride = 4
+experiment_name = f"cnn_multirnn_v1"
+
+vq_vae_experiment_name = f"vq_vae_v5.1"
+vq_vae_num_layers = 4
+vq_vae_max_filters = 512
+vq_vae_use_max_filters = True
+vq_vae_num_embeddings = 256
+vq_vae_embedding_dim = 32
+vq_vae_commitment_cost = 0.25
+vq_vae_small_conv = True  # To use the 1x1 convolution layer
+vq_vae_encoded_image_size = image_size // np.power(2, vq_vae_num_layers)
+
+prior_num_classes = vq_vae_num_embeddings
+prior_input_image_size = image_size
+prior_input_channels = 6
+prior_cnn_output_channels = 512
+prior_cnn_blocks = 4
+prior_rnn_hidden_size = 512
+prior_rnn_bidirectional = False
+prior_rnn_type = "lstm"
+prior_num_rnns = 4
+sequence_length_per_rnn = (vq_vae_encoded_image_size ** 2) // prior_num_rnns
+use_image_as_rnn_input = False
+
+normal_weight = 1
+background_weight = 1
 
 data_prefix = "data\\pokemon\\final\\standard"
 fusion_data_prefix = "data\\pokemon\\final\\fusions"
 output_prefix = f"data\\{experiment_name}"
 vq_vae_model_prefix = f"outputs\\{vq_vae_experiment_name}"
+
 vq_vae_model_path = os.path.join(vq_vae_model_prefix, "model.pt")
 
 train_data_folder = os.path.join(data_prefix, "train")
@@ -108,6 +89,7 @@ if not os.path.exists(output_dir):
 ################################################################################
 ################################## Data Setup ##################################
 ################################################################################
+####################################################################
 
 # Preprocess & Create Data Loaders
 transform = data.image2tensor_resize(image_size)
@@ -164,7 +146,7 @@ test_dataloader = torch.utils.data.DataLoader(
 ################################################################################
 
 # Create & Load VQVAE Model
-vq_vae = vqvae.VQVAE(
+vq_vae = cnn_rnn.VQVAE(
     num_layers=vq_vae_num_layers,
     input_image_dimensions=image_size,
     small_conv=vq_vae_small_conv,
@@ -179,49 +161,41 @@ vq_vae.eval()
 vq_vae.to(device)
 
 # Create Model
-if "linear" in experiment_name:
-    model = cnn_prior.CNNPriorV2(
-        input_channels=prior_input_channels,
-        output_channels=prior_output_channels,
-        input_dim=prior_input_dim,
-        output_dim=prior_output_dim,
-        hidden_size=prior_hidden_size,
-        max_filters=prior_max_filters,
-        kernel_size=prior_kernel_size,
-        stride=prior_stride,
-    )
-elif "autoencoding" in experiment_name:
-    model = cnn_prior.CNNPriorV3(
-        input_channels=prior_input_channels,
-        output_channels=prior_output_channels,
-        input_dim=prior_input_dim,
-        output_dim=prior_output_dim,
-        hidden_size=prior_hidden_size,
-        max_filters=prior_max_filters,
-        kernel_size=prior_kernel_size,
-        stride=prior_stride,
-    )
-else:
-    model = cnn_prior.CNNPrior(
-        input_channels=prior_input_channels,
-        output_channels=prior_output_channels,
-        input_dim=prior_input_dim,
-        output_dim=prior_output_dim,
-    )
+model = cnn_rnn.CNN_MultiRNN(
+    num_classes=prior_num_classes,
+    num_rnns=prior_num_rnns,
+    input_image_size=prior_input_image_size,
+    input_channels=prior_input_channels,
+    cnn_output_channels=prior_cnn_output_channels,
+    cnn_blocks=prior_cnn_blocks,
+    rnn_hidden_size=prior_rnn_hidden_size,
+    rnn_bidirectional=prior_rnn_bidirectional,
+    rnn_type=prior_rnn_type,
+)
 model.to(device)
 print(model)
+# Compute Class Weights
+white = Image.new(mode="RGB", size=(image_size, image_size), color="white")
+black = Image.new(mode="RGB", size=(image_size, image_size), color="black")
+class_weights = torch.full(
+    (prior_num_classes,), fill_value=normal_weight, device=device, dtype=torch.float32
+)
+with torch.no_grad():
+    _, _, _, encodings = vq_vae(transform(white).unsqueeze(0).to(device))
+    white = encodings.flatten()[0].detach()
+    class_weights[white] = background_weight
+    _, _, _, encodings = vq_vae(transform(black).unsqueeze(0).to(device))
+    black = encodings.flatten()[0].detach()
+    class_weights[black] = background_weight
 
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-if mode == "discrete":
-    criterion = torch.nn.CrossEntropyLoss()
-elif mode == "continuous" or mode == "continuous-final_image":
-    criterion = torch.nn.MSELoss()
-
+criterion = torch.nn.CrossEntropyLoss(weight=class_weights)
 ################################################################################
 ################################### Training ###################################
 ################################################################################
 
 # Train
+sequence_length = vq_vae_encoded_image_size ** 2
 all_train_loss = []
 all_val_loss = []
 
@@ -234,6 +208,7 @@ for epoch in range(epochs):
     for iteration, batch in enumerate(tqdm(train_dataloader)):
         # Reset gradients back to zero for this iteration
         optimizer.zero_grad()
+        batch_loss = 0
 
         # Move batch to device
         _, (base, fusee, fusion) = batch  # (names), (images)
@@ -245,52 +220,43 @@ for epoch in range(epochs):
         with torch.no_grad():
             # Get Encodings from vq_vae
             _, _, _, encodings = vq_vae(fusion)
-            if mode == "discrete":
-                # Reshape encodings
-                y = encodings.reshape(
-                    current_batch_size, prior_output_dim, prior_output_dim
-                )
-            elif mode == "continuous":
-                target_shape = (
-                    current_batch_size,
-                    prior_output_dim,
-                    prior_output_dim,
-                    vq_vae_embedding_dim,
-                )
-                y = vq_vae.vq_vae.quantize_encoding_indices(
-                    encodings, target_shape, device
-                )
-            elif mode == "continuous-final_image":
-                y = fusion
-            # Get Encodings of Inputs if EIEO Model
-            if eieo:
-                target_shape = (
-                    current_batch_size,
-                    prior_output_dim,
-                    prior_output_dim,
-                    vq_vae_embedding_dim,
-                )
-                base = vq_vae.vq_vae.quantize_encoding_indices(
-                    vq_vae(base)[3], target_shape, device
-                )
-                fusee = vq_vae.vq_vae.quantize_encoding_indices(
-                    vq_vae(fusee)[3], target_shape, device
-                )
+            # Reshape encodings
+            y = encodings.reshape(
+                current_batch_size,
+                vq_vae_encoded_image_size,
+                vq_vae_encoded_image_size,
+            )
 
-        # Run our model & get outputs
-        if combine_model_inputs:
-            y_hat = model(torch.cat([base, fusee], dim=1))
-        else:
-            y_hat = model(base, fusee)
+        # Get Encoder Outputs
+        decoder_input_orig = model(torch.cat([base, fusee], dim=1))
 
-        if mode == "continuous-final_image":
-            y_hat = vq_vae.decoder(y_hat)
+        # Init Hidden State
+        decoder_hidden = model.init_hidden_state(current_batch_size, device)
 
-        # Calculate Loss
-        batch_loss = criterion(y_hat, y)
+        # Run Through RNN
+        for j, rnn in enumerate(model.decoder_rnns):
+            if j == 0 or use_image_as_rnn_input:
+                decoder_input = decoder_input_orig.detach()
+            for i in range(sequence_length_per_rnn):
+                # Get Output For Timestep
+                decoder_output, decoder_hidden = rnn(decoder_input, decoder_hidden)
+                # Prepare Next Input
+                decoder_input = decoder_output.detach()
+                # Calculate Current Image Indices
+                current_num = (j * sequence_length_per_rnn) + i
+                j = current_num // vq_vae_encoded_image_size
+                i = current_num % vq_vae_encoded_image_size
+                # Calculate Loss
+                batch_loss += criterion(decoder_output.squeeze(1), y[:, j, i])
+
+        # Normalize Batch Loss by Sequence Length
+        batch_loss /= sequence_length
 
         # Backprop
         batch_loss.backward()
+
+        # Clip Gradients
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=2.0)
 
         # Update our optimizer parameters
         optimizer.step()
@@ -302,6 +268,7 @@ for epoch in range(epochs):
     model.eval()
     with torch.no_grad():
         for iteration, batch in enumerate(tqdm(val_dataloader)):
+            batch_loss = 0
             # Move batch to device
             _, (base, fusee, fusion) = batch  # (names), (images)
             base = base.to(device)
@@ -311,50 +278,37 @@ for epoch in range(epochs):
 
             # Get Encodings from vq_vae
             _, _, _, encodings = vq_vae(fusion)
-            if mode == "discrete":
-                # Reshape encodings
-                y = encodings.reshape(
-                    current_batch_size, prior_output_dim, prior_output_dim
-                )
-            elif mode == "continuous":
-                target_shape = (
-                    current_batch_size,
-                    prior_output_dim,
-                    prior_output_dim,
-                    vq_vae_embedding_dim,
-                )
-                y = vq_vae.vq_vae.quantize_encoding_indices(
-                    encodings, target_shape, device
-                )
-            elif mode == "continuous-final_image":
-                y = fusion
+            # Reshape encodings
+            y = encodings.reshape(
+                current_batch_size,
+                vq_vae_encoded_image_size,
+                vq_vae_encoded_image_size,
+            )
 
-            # Get Encodings of Inputs if EIEO Model
-            if eieo:
-                target_shape = (
-                    current_batch_size,
-                    prior_output_dim,
-                    prior_output_dim,
-                    vq_vae_embedding_dim,
-                )
-                base = vq_vae.vq_vae.quantize_encoding_indices(
-                    vq_vae(base)[3], target_shape, device
-                )
-                fusee = vq_vae.vq_vae.quantize_encoding_indices(
-                    vq_vae(fusee)[3], target_shape, device
-                )
+            # Get Encoder Outputs
+            decoder_input_orig = model(torch.cat([base, fusee], dim=1))
 
-            # Run our model & get outputs
-            if combine_model_inputs:
-                y_hat = model(torch.cat([base, fusee], dim=1))
-            else:
-                y_hat = model(base, fusee)
+            # Init Hidden State
+            decoder_hidden = model.init_hidden_state(current_batch_size, device)
 
-            if mode == "continuous-final_image":
-                y_hat = vq_vae.decoder(y_hat)
+            # Run Through RNN
+            for j, rnn in enumerate(model.decoder_rnns):
+                if j == 0 or use_image_as_rnn_input:
+                    decoder_input = decoder_input_orig.detach()
+                for i in range(sequence_length_per_rnn):
+                    # Get Output For Timestep
+                    decoder_output, decoder_hidden = rnn(decoder_input, decoder_hidden)
+                    # Prepare Next Input
+                    decoder_input = decoder_output.detach()
+                    # Calculate Current Image Indices
+                    current_num = (j * sequence_length_per_rnn) + i
+                    j = current_num // vq_vae_encoded_image_size
+                    i = current_num % vq_vae_encoded_image_size
+                    # Calculate Loss
+                    batch_loss += criterion(decoder_output.squeeze(1), y[:, j, i])
 
-            # Calculate Loss
-            batch_loss = criterion(y_hat, y)
+            # Normalize Batch Loss by Sequence Length
+            batch_loss /= sequence_length
 
             # Add the batch's loss to the total loss for the epoch
             val_loss += batch_loss.item()
@@ -382,18 +336,18 @@ graphics.draw_loss(all_train_loss, all_val_loss, loss_output_path, mode="autoenc
 # Save Model
 torch.save(model.state_dict(), model_output_path)
 
+# Eval Mode
 model.eval()
 
-# Evaluate on Test Images
-# Testing Loop - Standard
+# Set up Evaluation Metrics
 mse_loss = torch.nn.MSELoss(reduction="none")
 ssim_module = pytorch_msssim.SSIM(
     data_range=1.0, win_size=11, win_sigma=1.5, K=(0.01, 0.03), size_average=False
 )
-
-all_mse = []
 all_ssim = []
+all_mse = []
 
+# Evaluate on Test Images
 with torch.no_grad():
     for iteration, batch in enumerate(tqdm(test_dataloader)):
         # Move batch to device
@@ -405,45 +359,48 @@ with torch.no_grad():
 
         # Get Encodings from vq_vae
         _, _, _, encodings = vq_vae(fusion)
-        target_shape = (
+        # Reshape encodings
+        y = encodings.reshape(
             current_batch_size,
-            prior_output_dim,
-            prior_output_dim,
-            vq_vae_embedding_dim,
+            vq_vae_encoded_image_size,
+            vq_vae_encoded_image_size,
         )
-        if mode == "discrete":
-            # Reshape encodings
-            y = encodings.reshape(
-                current_batch_size, prior_output_dim, prior_output_dim
-            )
-        elif mode == "continuous":
-            y = vq_vae.vq_vae.quantize_encoding_indices(encodings, target_shape, device)
-        elif mode == "continuous-final_image":
-            y = fusion
+        y_hat = torch.zeros_like(y)
 
-        # Get Encodings of Inputs if EIEO Model
-        if eieo:
-            base = vq_vae.vq_vae.quantize_encoding_indices(
-                vq_vae(base)[3], target_shape, device
-            )
-            fusee = vq_vae.vq_vae.quantize_encoding_indices(
-                vq_vae(fusee)[3], target_shape, device
-            )
+        # Get Encoder Outputs
+        decoder_input_orig = model(torch.cat([base, fusee], dim=1))
 
-        # Run our model & get outputs
-        if combine_model_inputs:
-            y_hat = model(torch.cat([base, fusee], dim=1))
-        else:
-            y_hat = model(base, fusee)
+        # Init Hidden State
+        decoder_hidden = model.init_hidden_state(current_batch_size, device)
 
-        mask = (base == fusee).flatten(start_dim=1).all(dim=1)
+        # Run Through RNN
+        for j, rnn in enumerate(model.decoder_rnns):
+            if j == 0 or use_image_as_rnn_input:
+                decoder_input = decoder_input_orig.detach()
+            for i in range(sequence_length_per_rnn):
+                # Get Output For Timestep
+                decoder_output, decoder_hidden = rnn(decoder_input, decoder_hidden)
+                # Prepare Next Input
+                decoder_input = decoder_output.detach()
+                # Calculate Current Image Indices
+                current_num = (j * sequence_length_per_rnn) + i
+                j = current_num // vq_vae_encoded_image_size
+                i = current_num % vq_vae_encoded_image_size
+                # Store Prediction
+                y_hat[:, j, i] = decoder_output.squeeze(1).argmax(dim=1).detach().cpu()
 
         # Make y_hat an image
-        if mode == "discrete":
-            y_hat = y_hat.argmax(dim=1).flatten(start_dim=1).view(-1, 1)
-            y_hat = vq_vae.quantize_and_decode(y_hat, target_shape, device)
-        elif mode == "continuous" or mode == "continuous-final_image":
-            y_hat = vq_vae.decoder(y_hat)
+        target_shape = (
+            current_batch_size,
+            vq_vae_encoded_image_size,
+            vq_vae_encoded_image_size,
+            vq_vae_embedding_dim,
+        )
+        y_hat = y_hat.view(-1, 1)
+        y_hat = vq_vae.quantize_and_decode(y_hat, target_shape, device)
+
+        # Create mask
+        mask = (base == fusee).flatten(start_dim=1).all(dim=1)
 
         # Calculate MSE
         overall_mse = (
