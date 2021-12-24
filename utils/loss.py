@@ -1,6 +1,17 @@
 import torch
 import torch.nn as nn
 
+def rmse_loss(reconstructed_x, x, use_sum, epsilon=1e-8):
+    """
+    We use epsilon to avoid NaN during backprop if mse = 0.
+    Ref: https://discuss.pytorch.org/t/rmse-loss-function/16540/6
+    """
+    if use_sum:
+        mse = nn.functional.mse_loss(reconstructed_x, x, reduction="sum")
+    else:
+        mse = nn.functional.mse_loss(reconstructed_x, x, reduction="mean")
+    return torch.sqrt(mse + epsilon)
+
 
 def mse_loss(reconstructed_x, x, use_sum):
     if use_sum:
