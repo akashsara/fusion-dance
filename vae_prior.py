@@ -23,6 +23,7 @@ learning_rate = 1e-4
 epochs = 25
 batch_size = 32
 num_dataloader_workers = 0
+use_noise_images = False
 
 experiment_name = f"convolutional_vae_v10"
 
@@ -45,7 +46,6 @@ max_filters = 512
 input_dim = 1
 latent_dim = 256
 num_classes = vq_vae_num_embeddings
-use_noise_images = True
 small_conv = False  # To use the 1x1 convolution layer
 kl_d_weight = 1  # equivalent to beta in a Beta-VAE
 

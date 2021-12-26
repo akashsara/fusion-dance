@@ -451,8 +451,6 @@ class VAEPrior(nn.Module):
         return channel_sizes
 
     def forward(self, x, return_logits=False):
-        x = self.embedding(x.flatten(start_dim=1))
-        x = x.reshape(-1, self.out_channels, self.out_size, self.out_size)
         mu, log_var = self.get_latent_variables(x)
         # Reparameterize
         z = self.reparameterize(mu, log_var)
