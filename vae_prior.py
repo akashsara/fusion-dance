@@ -43,11 +43,11 @@ vq_vae_small_conv = True  # To use the 1x1 convolution layer
 image_size = vq_vae_image_size // (2 ** vq_vae_num_layers)
 num_layers = 2
 max_filters = 512
-input_dim = 1
 latent_dim = 256
 num_classes = vq_vae_num_embeddings
 small_conv = False  # To use the 1x1 convolution layer
 kl_d_weight = 1  # equivalent to beta in a Beta-VAE
+use_sum = False
 
 # Data Config
 data_prefix = "data\\pokemon\\final\\standard"
@@ -154,7 +154,10 @@ model.to(device)
 print(model)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-criterion = nn.CrossEntropyLoss()
+if use_sum:
+    criterion = nn.CrossEntropyLoss(reduction='sum')
+else:
+    criterion = nn.CrossEntropyLoss()
 ################################################################################
 ################################### Training ###################################
 ################################################################################
