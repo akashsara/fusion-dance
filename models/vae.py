@@ -478,6 +478,8 @@ class VAEPrior(nn.Module):
 
     def get_latent_variables(self, x):
         # Encode
+        x = self.embedding(x.flatten(start_dim=1))
+        x = x.reshape(-1, self.out_channels, self.out_size, self.out_size)
         hidden_state = self.encoder(x)
         # Get latent variables
         mu = self.fc_mu(hidden_state)
