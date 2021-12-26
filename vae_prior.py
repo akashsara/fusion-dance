@@ -289,7 +289,16 @@ for epoch in range(epochs):
 graphics.draw_loss(all_train_loss, all_val_loss, loss_output_path, mode="vae")
 
 # Save Model
-torch.save(model.state_dict(), model_output_path)
+torch.save(
+    {
+        "epoch": epoch,
+        "model_state_dict": model.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "train_loss": all_train_loss,
+        "val_loss": all_val_loss,
+    },
+    model_output_path,
+)
 
 # Plot Animation Sample
 fig, axis = graphics.make_grid(("Sample", sample), 4, 4)
