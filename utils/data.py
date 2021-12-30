@@ -305,3 +305,14 @@ def image2tensor_resize(image_size):
             ),
         ]
     )
+
+def image2tensor_normalize_resize(image_size, num_classes):
+    return transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Lambda(lambda image: image / num_classes),
+            transforms.Resize(
+                image_size, interpolation=transforms.InterpolationMode.BICUBIC
+            ),
+        ]
+    )
