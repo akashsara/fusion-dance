@@ -258,6 +258,8 @@ def load_images_from_folder(folder, use_noise_images):
             continue
         image = Image.open(os.path.join(folder, file))
         dataset[file] = np.array(image)
+        if len(dataset) > 99:
+            break
     print(f"Loaded {len(dataset)} images.")
     return dataset
 
@@ -300,17 +302,6 @@ def image2tensor_resize(image_size):
     return transforms.Compose(
         [
             transforms.ToTensor(),
-            transforms.Resize(
-                image_size, interpolation=transforms.InterpolationMode.BICUBIC
-            ),
-        ]
-    )
-
-def image2tensor_normalize_resize(image_size, num_classes):
-    return transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Lambda(lambda image: image / num_classes),
             transforms.Resize(
                 image_size, interpolation=transforms.InterpolationMode.BICUBIC
             ),
