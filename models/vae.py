@@ -144,7 +144,7 @@ class ConvolutionalVAE(nn.Module):
             return reconstructed, mu, log_var, logits
         else:
             reconstructed = self.decoder(z)
-            return reconstructed, mu, log_var
+            return reconstructed, mu, log_var, None
 
     def reparameterize(self, mu, log_var):
         std = torch.exp(log_var.mul(0.5))  # log sqrt(x) = log x^0.5 = 0.5 log x
@@ -450,23 +450,16 @@ class VAEPrior(nn.Module):
             channel_sizes.append((prev, new))
         return channel_sizes
 
-    def forward(self, x, return_logits=False):
+    def forward(self, x):
         mu, log_var = self.get_latent_variables(x)
         # Reparameterize
         z = self.reparameterize(mu, log_var)
         # Decode
-        if return_logits:
-            for layer in self.decoder[:-1]:
-                z = layer(z)
-            logits = z
-            reconstructed = self.decoder[-1](z)
-        else:
-            logits = None
-            reconstructed = self.decoder(z)
+        reconstructed = self.decoder(z)
         reconstructed = reconstructed.view(
             -1, self.out_channels, self.out_size, self.out_size
         )
-        return reconstructed, mu, log_var, logits
+        return reconstructed, mu, log_var
 
     def reparameterize(self, mu, log_var):
         std = torch.exp(log_var.mul(0.5))  # log sqrt(x) = log x^0.5 = 0.5 log x
