@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 def rmse_loss(reconstructed_x, x, use_sum, epsilon=1e-8):
     """
     We use epsilon to avoid NaN during backprop if mse = 0.
@@ -25,6 +26,13 @@ def bce_loss(reconstructed_x, x, use_sum):
         return nn.functional.binary_cross_entropy(reconstructed_x, x, reduction="sum")
     else:
         return nn.functional.binary_cross_entropy(reconstructed_x, x, reduction="mean")
+
+
+def crossentropy_loss(reconstructed_x, x, use_sum):
+    if use_sum:
+        return nn.functional.cross_entropy(reconstructed_x, x, reduction="sum")
+    else:
+        return nn.functional.cross_entropy(reconstructed_x, x, reduction="mean")
 
 
 def kl_divergence(mu, log_var, use_sum):
