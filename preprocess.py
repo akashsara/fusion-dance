@@ -29,6 +29,7 @@ output_dir = sys.argv[2]
 num_test = int(sys.argv[3])
 num_valid = int(sys.argv[4])
 rotations = [15, 30]
+use_noise = False
 
 
 def change_background_color(image, color):
@@ -53,7 +54,7 @@ for folder in ["train", "test", "val"]:
 # Do a Train-Val-Test Split
 unique = []
 for file in os.listdir(input_dir):
-    file = file.split("_")[0].split("-")[0]
+    file = file.split('.')[0].split("_")[0].split("-")[0]
     if file not in unique and file not in ["train", "test", "val"]:
         unique.append(file)
 
@@ -64,6 +65,9 @@ val = set(unique[-num_valid:])
 train = set(unique[:-num_valid])
 print(f"Train: {len(train)}\nVal: {len(val)}\nTest: {len(test)}")
 
+all_train = []
+all_val = []
+all_test = []
 for input_file in os.listdir(input_dir):
     print(input_file)
     # Load file
@@ -75,11 +79,15 @@ for input_file in os.listdir(input_dir):
     colors = ["white", "black"]
     if image_id in test:
         save_dir = os.path.join(output_dir, "test")
+        all_test.append(image_id)
     elif image_id in val:
         save_dir = os.path.join(output_dir, "val")
+        all_val.append(image_id)
     else:
         save_dir = os.path.join(output_dir, "train")
-        colors.extend(["noise1", "noise2"])
+        all_train.append(image_id)
+        if use_noise:
+            colors.extend(["noise1", "noise2"])
 
     # Augment data
     for color in colors:
@@ -113,3 +121,4 @@ for input_file in os.listdir(input_dir):
         new_sprite = new_sprite.transpose(Image.FLIP_LEFT_RIGHT)
         output_file = f"{input_file_name}_{color}BG_flipped.png"
         new_sprite.save(os.path.join(save_dir, output_file))
+print(f"Train: {len(all_train)}\nVal: {len(all_val)}\nTest: {len(all_test)}")
