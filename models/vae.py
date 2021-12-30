@@ -144,7 +144,7 @@ class ConvolutionalVAE(nn.Module):
             return reconstructed, mu, log_var, logits
         else:
             reconstructed = self.decoder(z)
-            return reconstructed, mu, log_var, None
+            return reconstructed, mu, log_var
 
     def reparameterize(self, mu, log_var):
         std = torch.exp(log_var.mul(0.5))  # log sqrt(x) = log x^0.5 = 0.5 log x

@@ -47,6 +47,7 @@ num_classes = vq_vae_num_embeddings
 small_conv = False  # To use the 1x1 convolution layer
 kl_d_weight = 1  # equivalent to beta in a Beta-VAE
 use_sum = False
+use_discrete = True # Treat our inputs as discrete values
 
 # Data Config
 data_prefix = "data\\pokemon\\final\\standard"
@@ -141,22 +142,32 @@ vq_vae.eval()
 vq_vae.to(device)
 
 # Create Model
-model = vae.VAEPrior(
-    input_dimensions=image_size,
-    num_classes=num_classes,
-    num_layers=num_layers,
-    max_filters=max_filters,
-    latent_dim=latent_dim,
-    small_conv=small_conv,
-)
+if use_discrete:
+    model = vae.VAEPrior(
+        input_dimensions=image_size,
+        num_classes=num_classes,
+        num_layers=num_layers,
+        max_filters=max_filters,
+        latent_dim=latent_dim,
+        small_conv=small_conv,
+    )
+else:
+    model = vae.ConvolutionalVAE(
+        input_image_dimensions=image_size,
+        image_channels=1,
+        num_layers=num_layers,
+        max_filters=max_filters,
+        latent_dim=latent_dim,
+        small_conv=small_conv,
+    )
 model.to(device)
 print(model)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-if use_sum:
-    criterion = nn.CrossEntropyLoss(reduction='sum')
+if use_discrete:
+    criterion = loss.crossentropy_loss
 else:
-    criterion = nn.CrossEntropyLoss()
+    criterion = loss.mse_loss
 ################################################################################
 ################################### Training ###################################
 ################################################################################
@@ -171,9 +182,14 @@ model.eval()
 target_shape = (sample.shape[0], image_size, image_size, vq_vae_embedding_dim)
 with torch.no_grad():
     _, _, _, encodings = vq_vae(sample.to(device))
-    epoch_sample = encodings.reshape(-1, image_size, image_size)
-    epoch_sample, _, _, _ = model(epoch_sample)
-    epoch_sample = epoch_sample.argmax(dim=1, keepdim=True)
+    epoch_sample = encodings.reshape(-1, 1, image_size, image_size)
+    if use_discrete:
+        epoch_sample, _, _ = model(epoch_sample)
+        epoch_sample = epoch_sample.argmax(dim=1, keepdim=True)
+    else:
+        epoch_sample = epoch_sample / vq_vae_num_embeddings
+        epoch_sample, _, _ = model(epoch_sample)
+        epoch_sample = (epoch_sample * vq_vae_num_embeddings).long()
     epoch_sample = epoch_sample.flatten(start_dim=1).view(-1, 1)
     epoch_sample = vq_vae.quantize_and_decode(epoch_sample, target_shape, device)
 
@@ -201,13 +217,17 @@ for epoch in range(epochs):
         with torch.no_grad():
             # Get Encodings from vq_vae
             _, _, _, encodings = vq_vae(batch)
-            original = encodings.reshape(-1, image_size, image_size)
+            if use_discrete:
+                original = encodings.reshape(-1, image_size, image_size)
+            else:
+                original = encodings / vq_vae_num_embeddings
+                original = original.reshape(-1, 1, image_size, image_size)
 
         # Run our model & get outputs
-        reconstructed, mu, log_var, _ = model(original)
+        reconstructed, mu, log_var = model(original)
 
         # Calculate loss
-        reconstruction_loss = criterion(reconstructed, original)
+        reconstruction_loss = criterion(reconstructed, original, use_sum)
         kl_d_loss = loss.kl_divergence(mu, log_var, use_sum=False)
         final_loss = reconstruction_loss + (kl_d_weight * kl_d_loss)
 
@@ -232,13 +252,17 @@ for epoch in range(epochs):
 
             # Get Encodings from vq_vae
             _, _, _, encodings = vq_vae(batch)
-            original = encodings.reshape(-1, image_size, image_size)
+            if use_discrete:
+                original = encodings.reshape(-1, image_size, image_size)
+            else:
+                original = encodings / vq_vae_num_embeddings
+                original = original.reshape(-1, 1, image_size, image_size)
 
             # Run our model & get outputs
-            reconstructed, mu, log_var, _ = model(original)
+            reconstructed, mu, log_var = model(original)
 
             # Calculate loss
-            reconstruction_loss = criterion(reconstructed, original)
+            reconstruction_loss = criterion(reconstructed, original, use_sum)
             kl_d_loss = loss.kl_divergence(mu, log_var, use_sum=False)
             final_loss = reconstruction_loss + (kl_d_weight * kl_d_loss)
 
@@ -250,9 +274,14 @@ for epoch in range(epochs):
         # Get reconstruction of our sample
         target_shape = (sample.shape[0], image_size, image_size, vq_vae_embedding_dim)
         _, _, _, encodings = vq_vae(sample.to(device))
-        epoch_sample = encodings.reshape(-1, image_size, image_size)
-        epoch_sample, _, _, _ = model(epoch_sample)
-        epoch_sample = epoch_sample.argmax(dim=1, keepdim=True)
+        epoch_sample = encodings.reshape(-1, 1, image_size, image_size)
+        if use_discrete:
+            epoch_sample, _, _ = model(epoch_sample)
+            epoch_sample = epoch_sample.argmax(dim=1, keepdim=True)
+        else:
+            epoch_sample = epoch_sample / vq_vae_num_embeddings
+            epoch_sample, _, _ = model(epoch_sample)
+            epoch_sample = (epoch_sample * vq_vae_num_embeddings).long()
         epoch_sample = epoch_sample.flatten(start_dim=1).view(-1, 1)
         epoch_sample = vq_vae.quantize_and_decode(epoch_sample, target_shape, device)
 
@@ -323,13 +352,17 @@ with torch.no_grad():
 
         # Get Encodings from vq_vae
         _, _, _, encodings = vq_vae(batch)
-        original = encodings.reshape(-1, image_size, image_size)
+        if use_discrete:
+            original = encodings.reshape(-1, image_size, image_size)
+        else:
+            original = encodings / vq_vae_num_embeddings
+            original = original.reshape(-1, 1, image_size, image_size)
 
         # Run our model & get outputs
-        reconstructed, mu, log_var, _ = model(original)
+        reconstructed, mu, log_var = model(original)
 
         # Calculate loss
-        reconstruction_loss = criterion(reconstructed, original)
+        reconstruction_loss = criterion(reconstructed, original, use_sum)
         kl_d_loss = loss.kl_divergence(mu, log_var, use_sum=False)
         final_loss = reconstruction_loss + (kl_d_weight * kl_d_loss)
 
@@ -345,7 +378,10 @@ with torch.no_grad():
             image_size,
             vq_vae_embedding_dim,
         )
-        reconstructed = reconstructed.argmax(dim=1, keepdim=True)
+        if use_discrete:
+            reconstructed = reconstructed.argmax(dim=1, keepdim=True)
+        else:
+            reconstructed = (reconstructed * vq_vae_num_embeddings).long()
         reconstructed = reconstructed.flatten(start_dim=1).view(-1, 1)
         reconstructed = vq_vae.quantize_and_decode(reconstructed, target_shape, device)
         reconstructed = reconstructed.permute(0, 2, 3, 1).detach().cpu().numpy()
@@ -373,9 +409,14 @@ plt.savefig(test_sample_input_name)
 target_shape = (test_sample.shape[0], image_size, image_size, vq_vae_embedding_dim)
 with torch.no_grad():
     _, _, _, encodings = vq_vae(test_sample.to(device))
-    test_sample = encodings.reshape(-1, image_size, image_size)
-    test_sample, _, _, _ = model(test_sample)
-    test_sample = test_sample.argmax(dim=1, keepdim=True)
+    test_sample = encodings.reshape(-1, 1, image_size, image_size)
+    if use_discrete:
+        test_sample, _, _ = model(test_sample)
+        test_sample = test_sample.argmax(dim=1, keepdim=True)
+    else:
+        test_sample = test_sample / vq_vae_num_embeddings
+        test_sample, _, _ = model(test_sample)
+        test_sample = (test_sample * vq_vae_num_embeddings).long()
     test_sample = test_sample.flatten(start_dim=1).view(-1, 1)
     test_sample = vq_vae.quantize_and_decode(test_sample, target_shape, device)
     reconstructed = test_sample.detach().cpu()

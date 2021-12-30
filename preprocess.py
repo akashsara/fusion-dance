@@ -29,7 +29,7 @@ output_dir = sys.argv[2]
 num_test = int(sys.argv[3])
 num_valid = int(sys.argv[4])
 rotations = [15, 30]
-use_noise = False
+use_noise = True
 
 
 def change_background_color(image, color):
