@@ -258,8 +258,6 @@ def load_images_from_folder(folder, use_noise_images):
             continue
         image = Image.open(os.path.join(folder, file))
         dataset[file] = np.array(image)
-        if len(dataset) > 99:
-            break
     print(f"Loaded {len(dataset)} images.")
     return dataset
 
