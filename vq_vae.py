@@ -19,29 +19,36 @@ _ = torch.manual_seed(seed)
 ################################################################################
 #################################### Config ####################################
 ################################################################################
+
+experiment_name = f"vq_vae_v5.10"
+
+# Hyperparameters
 learning_rate = 1e-4
 epochs = 25
 batch_size = 64
 num_dataloader_workers = 0
 
-experiment_name = f"vq_vae_v5.10"
-
+# VQ-VAE Config
 num_layers = 0
 num_embeddings = 256
 embedding_dim = 32
 commitment_cost = 0.25
 use_max_filters = True
 max_filters = 512
-image_size = 64
-use_noise_images = True
 small_conv = True  # To use the 1x1 convolution layer
+
+# Loss Config
 use_sum = False  # Use a sum instead of a mean for our loss function
 use_ssim_loss = False
 mse_weight = 1
 ssim_weight = 1
-num_mse = 0  # Each increment halves the image sizes and takes the MSE
 
-data_prefix = "data\\final\\standard"
+# Data Config
+image_size = 64
+use_noise_images = True
+load_data_to_memory = True
+
+data_prefix = "data\\Pokemon\\final\\standard"
 train_data_folder = os.path.join(data_prefix, "train")
 val_data_folder = os.path.join(data_prefix, "val")
 test_data_folder = os.path.join(data_prefix, "test")
@@ -74,17 +81,23 @@ if not os.path.exists(output_dir):
 ################################## Data Setup ##################################
 ################################################################################
 
-# Load Data
-train = data.load_images_from_folder(train_data_folder, use_noise_images)
-val = data.load_images_from_folder(val_data_folder, use_noise_images)
-test = data.load_images_from_folder(test_data_folder, use_noise_images)
-
 # Preprocess & Create Data Loaders
 transform = data.image2tensor_resize(image_size)
 
-train_data = data.CustomDataset(train, transform)
-val_data = data.CustomDataset(val, transform)
-test_data = data.CustomDataset(test, transform)
+if load_data_to_memory:
+    # Load Data
+    train = data.load_images_from_folder(train_data_folder, use_noise_images)
+    val = data.load_images_from_folder(val_data_folder, use_noise_images)
+    test = data.load_images_from_folder(test_data_folder, use_noise_images)
+
+    train_data = data.CustomDataset(train, transform)
+    val_data = data.CustomDataset(val, transform)
+    test_data = data.CustomDataset(test, transform)
+else:
+    train_data = data.CustomDatasetNoMemory(train_data_folder, transform, use_noise_images)
+    val_data = data.CustomDatasetNoMemory(val_data_folder, transform, use_noise_images)
+    test_data = data.CustomDatasetNoMemory(test_data_folder, transform, use_noise_images)
+    
 
 train_dataloader = torch.utils.data.DataLoader(
     train_data,
@@ -193,22 +206,6 @@ for epoch in range(epochs):
         batch_loss += vq_loss
         loss_dict["Commitment Loss"] = vq_loss.item()
 
-        # For multiple MSE
-        # For every MSE, we halve the image size
-        # And take the MSE between the resulting images
-        for i in range(num_mse):
-            new_size = image_size // pow(2, i + 1)
-            with torch.no_grad():
-                resized_batch = nn.functional.interpolate(
-                    batch, size=new_size, mode="bilinear"
-                )
-            resized_output = nn.functional.interpolate(
-                reconstructed, size=new_size, mode="bilinear"
-            )
-            mse = loss.mse_loss(resized_output, resized_batch, use_sum)
-            batch_loss += mse
-            loss_dict["MSE"] += mse.item()
-
         # Backprop
         batch_loss.backward()
 
@@ -246,20 +243,6 @@ for epoch in range(epochs):
             batch_loss += vq_loss
             loss_dict["Commitment Loss"] = vq_loss.item()
 
-            # For multiple MSE
-            # For every MSE, we halve the image size
-            # And take the MSE between the resulting images
-            for i in range(num_mse):
-                new_size = image_size // pow(2, i + 1)
-                resized_batch = nn.functional.interpolate(
-                    batch, size=new_size, mode="bilinear"
-                )
-                resized_output = nn.functional.interpolate(
-                    reconstructed, size=new_size, mode="bilinear"
-                )
-                mse = loss.mse_loss(resized_output, resized_batch, use_sum)
-                batch_loss += mse
-                loss_dict["MSE"] += mse.item()
             # Add the batch's loss to the total loss for the epoch
             val_loss += batch_loss.item()
             val_recon_loss += loss_dict["MSE"] + loss_dict["SSIM"]
