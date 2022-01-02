@@ -34,9 +34,12 @@ class CustomDatasetNoMemory(torch.utils.data.Dataset):
     Essentially the same as above but it doesn't load all the data to memory.
     Returns filename, image.
     """
-    def __init__(self, dataset_directory, transform):
+    def __init__(self, dataset_directory, transform, use_noise_images):
         self.dataset_path = dataset_directory
-        self.all_images = os.listdir(dataset_directory)
+        all_images = os.listdir(dataset_directory)
+        if not use_noise_images:
+            all_images = [x for x in all_images if "noise" not in x]
+        self.all_images = all_images
         self.transform = transform
 
     def __getitem__(self, index):
