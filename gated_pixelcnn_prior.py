@@ -25,6 +25,7 @@ batch_size = 32
 num_dataloader_workers = 0
 image_size = 64
 use_noise_images = True
+load_data_to_memory = False
 
 experiment_name = f"gated_pixelcnn_v1"
 
@@ -80,17 +81,22 @@ if not os.path.exists(output_dir):
 ################################## Data Setup ##################################
 ################################################################################
 
-# Load Data
-train = data.load_images_from_folder(train_data_folder, use_noise_images)
-val = data.load_images_from_folder(val_data_folder, use_noise_images)
-test = data.load_images_from_folder(test_data_folder, use_noise_images)
-
 # Preprocess & Create Data Loaders
 transform = data.image2tensor_resize(image_size)
 
-train_data = data.CustomDataset(train, transform)
-val_data = data.CustomDataset(val, transform)
-test_data = data.CustomDataset(test, transform)
+if load_data_to_memory:
+    # Load Data
+    train = data.load_images_from_folder(train_data_folder, use_noise_images)
+    val = data.load_images_from_folder(val_data_folder, use_noise_images)
+    test = data.load_images_from_folder(test_data_folder, use_noise_images)
+
+    train_data = data.CustomDataset(train, transform)
+    val_data = data.CustomDataset(val, transform)
+    test_data = data.CustomDataset(test, transform)
+else:
+    train_data = data.CustomDatasetNoMemory(train_data_folder, transform, use_noise_images)
+    val_data = data.CustomDatasetNoMemory(val_data_folder, transform, use_noise_images)
+    test_data = data.CustomDatasetNoMemory(test_data_folder, transform, use_noise_images)
 
 train_dataloader = torch.utils.data.DataLoader(
     train_data,
