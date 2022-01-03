@@ -27,7 +27,6 @@ use_noise_images = False
 experiment_name = f"convolutional_vae_v10"
 
 # VQ-VAE Config
-mode = "discrete"
 vq_vae_image_size = 64
 vq_vae_experiment_name = f"vq_vae_v5.5"
 vq_vae_num_layers = 2
@@ -51,7 +50,7 @@ use_discrete = True # Treat our inputs as discrete values
 
 # Data Config
 data_prefix = "data\\pokemon\\final\\standard"
-output_prefix = f"data\\{experiment_name}"
+output_prefix = f"outputs\\{experiment_name}"
 vq_vae_model_prefix = f"outputs\\{vq_vae_experiment_name}"
 vq_vae_model_path = os.path.join(vq_vae_model_prefix, "model.pt")
 
@@ -189,7 +188,7 @@ with torch.no_grad():
     else:
         epoch_sample = epoch_sample / vq_vae_num_embeddings
         epoch_sample, _, _ = model(epoch_sample)
-        epoch_sample = (epoch_sample * vq_vae_num_embeddings).long()
+        epoch_sample = (epoch_sample * (vq_vae_num_embeddings - 1)).long()
     epoch_sample = epoch_sample.flatten(start_dim=1).view(-1, 1)
     epoch_sample = vq_vae.quantize_and_decode(epoch_sample, target_shape, device)
 
@@ -281,7 +280,7 @@ for epoch in range(epochs):
         else:
             epoch_sample = epoch_sample / vq_vae_num_embeddings
             epoch_sample, _, _ = model(epoch_sample)
-            epoch_sample = (epoch_sample * vq_vae_num_embeddings).long()
+            epoch_sample = (epoch_sample * (vq_vae_num_embeddings - 1)).long()
         epoch_sample = epoch_sample.flatten(start_dim=1).view(-1, 1)
         epoch_sample = vq_vae.quantize_and_decode(epoch_sample, target_shape, device)
 
@@ -381,7 +380,7 @@ with torch.no_grad():
         if use_discrete:
             reconstructed = reconstructed.argmax(dim=1, keepdim=True)
         else:
-            reconstructed = (reconstructed * vq_vae_num_embeddings).long()
+            reconstructed = (reconstructed * (vq_vae_num_embeddings - 1)).long()
         reconstructed = reconstructed.flatten(start_dim=1).view(-1, 1)
         reconstructed = vq_vae.quantize_and_decode(reconstructed, target_shape, device)
         reconstructed = reconstructed.permute(0, 2, 3, 1).detach().cpu().numpy()
@@ -416,7 +415,7 @@ with torch.no_grad():
     else:
         test_sample = test_sample / vq_vae_num_embeddings
         test_sample, _, _ = model(test_sample)
-        test_sample = (test_sample * vq_vae_num_embeddings).long()
+        test_sample = (test_sample * (vq_vae_num_embeddings - 1)).long()
     test_sample = test_sample.flatten(start_dim=1).view(-1, 1)
     test_sample = vq_vae.quantize_and_decode(test_sample, target_shape, device)
     reconstructed = test_sample.detach().cpu()
