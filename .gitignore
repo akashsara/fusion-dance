@@ -2,11 +2,13 @@
 .vscode/
 __pycache__/
 env/
-data/
+data/MNIST
 data/Pokemon/*
 data/TinyHero/*
+data/Pokemon-Sugimori/*
 !data/Pokemon/original_data.zip
-!data/TinyHero/source.txt
+!data/TinyHero/original.zip
+!data/Pokemon-Sugimori/source.txt
 outputs/
 fusions/
 *.npy
