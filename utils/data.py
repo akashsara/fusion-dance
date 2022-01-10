@@ -272,7 +272,7 @@ def get_samples_from_data(data, sample_size, fusion=False):
             sample.append([np.asarray(x) for x in data[i][1]])
         else:
             sample.append(np.asarray(data[i][1]))
-    return torch.as_tensor(sample)
+    return torch.as_tensor(np.array(sample))
 
 
 def get_samples_from_FusionDatasetV2(data, sample_size, mode):
