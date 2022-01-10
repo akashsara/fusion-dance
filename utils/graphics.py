@@ -90,8 +90,9 @@ def draw_loss(all_train_loss, all_val_loss, loss_output_path, mode):
     else:
         train_label = "Train Loss"
         val_label = "Validation Loss"
+        output_path = os.path.join(loss_output_path, f"loss.jpg")
         plot_and_save_loss(
-            all_train_loss, train_label, all_val_loss, val_label, loss_output_path
+            all_train_loss, train_label, all_val_loss, val_label, output_path
         )
 
 
