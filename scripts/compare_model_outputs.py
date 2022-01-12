@@ -42,15 +42,17 @@ def pick_images(dir, num_images=16, max_tries=10000, fusions=False):
     return selected_images
 
 
-def get_images(dir, images_to_load, fusion_dir=None):
+def get_images(dir, images_to_load, resize_size=-1, fusion_dir=None):
     """
     Loads the images from the given directory.
     """
     images = []
     for image in images_to_load:
         file_path = os.path.join(dir, image)
-        image = np.array(Image.open(file_path))
-        images.append(image)
+        image = Image.open(file_path)
+        if resize_size > 0:
+            image = image.resize((resize_size, resize_size), Image.BICUBIC)
+        images.append(np.array(image))
     return images
 
 
@@ -61,7 +63,7 @@ def make_image_grid(images, title):
     dimensions = np.sqrt(len(images)).astype("uint8")
     height, width = dimensions, dimensions
     i, j = 0, 0
-    fig, axis = plt.subplots(height, width, figsize=(8, 6), dpi=150)
+    fig, axis = plt.subplots(height, width, figsize=(8, 6), dpi=300)
     for num, image in enumerate(images):
         if num == height * width:
             break
@@ -76,22 +78,17 @@ def make_image_grid(images, title):
     return fig, axis
 
 
-base_dir = "data\\pokemon\\final\\standard\\test"
+base_dir = "data\\Pokemon\\final\\standard\\test"
 output_dir = "data\\"
 model_prefix = f"outputs\\"
 num_images = 16
 model_list = [
-    "gated_pixelcnn_v1",
-    "gated_pixelcnn_v1.1",
-    "gated_pixelcnn_v1.2",
-    "gated_pixelcnn_v1.3",
-    "gated_pixelcnn_v1.4",
-    "gated_pixelcnn_v1.5",
 ]
 is_fusions = "fusions" in base_dir
 output_prefix = "fusions_" if is_fusions else ""
 use_base_model = False
 use_base_dir = False
+image_size = 64
 
 # VQ-VAE Config
 image_size = 64
@@ -108,7 +105,7 @@ vq_vae_small_conv = True  # To use the 1x1 convolution layer
 if use_base_dir:
     images_to_load = pick_images(base_dir, num_images, fusions=is_fusions)
     caption = output_prefix + "base"
-    images = get_images(base_dir, images_to_load)
+    images = get_images(base_dir, images_to_load, resize_size=image_size)
     fig, axis = make_image_grid(images, caption)
     plt.savefig(os.path.join(output_dir, f"{caption}.png"))
     print(caption)
@@ -152,7 +149,7 @@ for model in model_list:
     model_dir = os.path.join(model_prefix, model, "generated")
     if not use_base_dir:
         images_to_load = pick_images(model_dir, num_images, fusions=is_fusions)
-    images = get_images(model_dir, images_to_load)
+    images = get_images(model_dir, images_to_load, resize_size=image_size)
     fig, axis = make_image_grid(images, model)
     plt.savefig(os.path.join(output_dir, f"{output_prefix}{model}.png"))
     print(model)
