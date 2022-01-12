@@ -348,7 +348,7 @@ with torch.no_grad():
     for i in range(generation_batches):
         bg1_inputs = torch.zeros((generation_batch_size, 1)).int() + bg1
         bg2_inputs = torch.zeros((generation_batch_size, 1)).int() + bg2
-        input_ids = torch.cat((bg1_inputs, bg2_inputs))
+        input_ids = torch.cat((bg1_inputs, bg2_inputs)).to(device)
         generated = model.generate(
             input_ids=input_ids,
             max_length=max_seq_length,
