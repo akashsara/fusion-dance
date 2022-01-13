@@ -39,6 +39,7 @@ vocab_size = vq_vae_num_embeddings
 embedding_size = 768  # Default: 768
 num_hidden_layers = 12  # Default: 12
 num_attention_heads = 12  # Default: 12
+resid_pdrop = 0.1 # Default: 0.1
 
 # Generation Config
 generation_batches = 5
@@ -150,6 +151,7 @@ configuration = GPT2Config(
     n_embd=embedding_size,
     n_layer=num_hidden_layers,
     n_head=num_attention_heads,
+    resid_pdrop=resid_pdrop,
 )
 model = GPT2LMHeadModel(configuration)
 model.to(device)
