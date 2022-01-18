@@ -12,6 +12,7 @@ class CustomDataset(torch.utils.data.Dataset):
     Requires the dataset as a dict of form filename:image.
     Returns filename, image
     """
+
     def __init__(self, dataset=None, transform=None):
         self.dataset = list(dataset.values())
         self.keys = list(dataset.keys())
@@ -34,6 +35,7 @@ class CustomDatasetNoMemory(torch.utils.data.Dataset):
     Essentially the same as above but it doesn't load all the data to memory.
     Returns filename, image.
     """
+
     def __init__(self, dataset_directory, transform, use_noise_images):
         self.dataset_path = dataset_directory
         all_images = os.listdir(dataset_directory)
@@ -55,13 +57,14 @@ class CustomDatasetNoMemory(torch.utils.data.Dataset):
 
 class CustomDatasetWithLabels(torch.utils.data.Dataset):
     """
-    Unlike the previous CustomDatasets, 
+    Unlike the previous CustomDatasets,
     this requires both a feature dir and a labels dir.
-    Essentially we use this for tasks where we want to transform 
+    Essentially we use this for tasks where we want to transform
     the input feature image into the output label image.
     I.E. our FusionEnhancer.
     Returns filename, feature_image, label_image
     """
+
     def __init__(self, features_directory, labels_directory, transform):
         self.features_directory = features_directory
         self.labels_directory = labels_directory
@@ -75,6 +78,54 @@ class CustomDatasetWithLabels(torch.utils.data.Dataset):
         image_path = os.path.join(self.labels_directory, filename)
         label = self.transform(Image.open(image_path).convert("RGB"))
         return filename, feature, label
+
+    def __len__(self):
+        return len(self.all_images)
+
+
+class CustomDatasetNoMemoryAddBackground(torch.utils.data.Dataset):
+    """
+    Requires the path to a dataset.
+    Essentially the same as above but it doesn't load all the data to memory.
+    Returns filename, image.
+    """
+
+    def __init__(self, dataset_directory, transform, background_color):
+        self.dataset_path = dataset_directory
+        all_images = os.listdir(dataset_directory)
+        approved_images = []
+        done = set()
+        # We want only one sprite per Pokemon form
+        # For consistency we try to use the most recent game sprites
+        for image in all_images:
+            image_id = image.split("_")[0]
+            if image_id in done:
+                continue
+            image_formats = [
+                f"{image_id}_base_bw.png",
+                f"{image_id}_base_hgss.png",
+                f"{image_id}_base_plat.png",
+                f"{image_id}_base_dp.png"
+            ]
+            for image in image_formats:
+                if image in all_images:
+                    approved_images.append(image)
+                    done.add(image_id)
+                    break
+            else:
+                print(f"Exception. No matching image found for: {image_id}")
+        self.all_images = approved_images
+        self.transform = transform
+        self.background = background_color  # Tuple (R,G,B)
+
+    def __getitem__(self, index):
+        filename = self.all_images[index]
+        image_path = os.path.join(self.dataset_path, filename)
+        image = Image.open(image_path).convert("RGBA")
+        background = Image.new("RGBA", image.size, self.background)
+        image = Image.alpha_composite(background, image).convert("RGB")
+        processed = self.transform(image)
+        return filename, processed
 
     def __len__(self):
         return len(self.all_images)
