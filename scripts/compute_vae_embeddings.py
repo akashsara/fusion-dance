@@ -38,6 +38,7 @@ batch_size = 32
 num_dataloader_workers = 0
 background = (255, 255, 255)
 data_folder = "data\\pokemon\\original_data"
+dataset = "pokemon-sprites"
 
 model_prefix = f"outputs\\{experiment_name}"
 model_path = os.path.join(model_prefix, "model.pt")
@@ -51,7 +52,7 @@ print(gpu, device)
 transform = data.image2tensor_resize(image_size)
 
 # Load Data
-data_in = data.CustomDatasetNoMemoryAddBackground(data_folder, transform, background)
+data_in = data.CustomDatasetNoMemoryAddBackground(data_folder, dataset, transform, background)
 
 input_dataloader = torch.utils.data.DataLoader(
     data_in,

@@ -18,15 +18,15 @@ _ = torch.manual_seed(seed)
 #################################### Config ####################################
 ################################################################################
 
-mode = "encodings" # embeddings or dncodings
+mode = "embeddings"  # embeddings or edncodings
 
 # VQ-VAE Config
 vq_vae_image_size = 64
-vq_vae_experiment_name = f"vq_vae_v5.8"
+vq_vae_experiment_name = f"tinyhero_vq_vae_v2.1"
 vq_vae_num_layers = 1
 vq_vae_max_filters = 512
 vq_vae_use_max_filters = True
-vq_vae_num_embeddings = 256
+vq_vae_num_embeddings = 512
 vq_vae_embedding_dim = 32
 vq_vae_commitment_cost = 0.25
 vq_vae_small_conv = True  # To use the 1x1 convolution layer
@@ -34,16 +34,17 @@ vq_vae_embedding_size = vq_vae_image_size // (2 ** vq_vae_num_layers)
 
 # Pokedex
 pokedex_url = "https://raw.githubusercontent.com/lgreski/pokemonData/master/Pokemon.csv"
-pokedex = pd.read_csv(pokedex_url).drop_duplicates(['ID', 'Name'])
+pokedex = pd.read_csv(pokedex_url).drop_duplicates(["ID", "Name"])
 pokedex.index = pokedex.ID
-pokemon_types = pokedex['Type1'].to_dict()
-pokedex = pokedex['Name'].to_dict()
+pokemon_types = pokedex["Type1"].to_dict()
+pokedex = pokedex["Name"].to_dict()
 
 # Data Config
 batch_size = 32
 num_dataloader_workers = 0
 background = (255, 255, 255)
-data_folder = "data\\pokemon\\original_data"
+data_folder = "data\\TinyHero\\processed" # "data\\pokemon\\original_data"
+dataset = "tinyhero"
 
 model_prefix = f"outputs\\{vq_vae_experiment_name}"
 model_path = os.path.join(model_prefix, "model.pt")
@@ -57,7 +58,9 @@ print(gpu, device)
 transform = data.image2tensor_resize(vq_vae_image_size)
 
 # Load Data
-data_in = data.CustomDatasetNoMemoryAddBackground(data_folder, transform, background)
+data_in = data.CustomDatasetNoMemoryAddBackground(
+    data_folder, dataset, transform, background
+)
 
 input_dataloader = torch.utils.data.DataLoader(
     data_in,
@@ -84,7 +87,7 @@ model.to(device)
 
 all_embeddings = []
 all_filenames = []
-all_pokemon_types = []
+all_color_ids = []
 with torch.no_grad():
     for iteration, batch in enumerate(tqdm(input_dataloader)):
         # Move batch to device
@@ -96,7 +99,7 @@ with torch.no_grad():
         _, _, _, encodings = model(batch)
         if mode == "encodings":
             embeddings = encodings.reshape(current_batch_size, -1)
-        elif mode == "embedding":
+        elif mode == "embeddings":
             target_shape = (
                 current_batch_size,
                 vq_vae_embedding_size,
@@ -110,16 +113,21 @@ with torch.no_grad():
         all_embeddings.append(embeddings)
         # Add filenames (with Pokemon name instead of ID) to list
         for filename in filenames:
-            filename = filename.split("_")[0]
-            pokemon_id = filename.split("-")[0].split(".")[0]
-            filename = filename.replace(pokemon_id, pokedex[int(pokemon_id)])
+            if "pokemon" in dataset:
+                filename = filename.split("_")[0]
+                pokemon_id = filename.split("-")[0].split(".")[0]
+                filename = filename.replace(pokemon_id, pokedex[int(pokemon_id)])
+                all_color_ids.append(pokemon_types[int(pokemon_id)])
+            else:
+                color = filename.split('.')[0].split('_')[1]
+                all_color_ids.append(color)
             all_filenames.append(filename)
-            all_pokemon_types.append(pokemon_types[int(pokemon_id)])
 # Save to file
 all_embeddings = torch.cat(all_embeddings).detach().cpu()
 if mode == "encodings":
     all_embeddings = all_embeddings.float() / vq_vae_num_embeddings
+
 torch.save(
-    {"embeddings": all_embeddings, "filenames": all_filenames, "pokemon_types": all_pokemon_types},
+    {"embeddings": all_embeddings, "filenames": all_filenames, "color": all_color_ids},
     os.path.join(model_prefix, f"{mode}.pt"),
 )

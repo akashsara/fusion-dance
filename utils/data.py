@@ -90,33 +90,38 @@ class CustomDatasetNoMemoryAddBackground(torch.utils.data.Dataset):
     Returns filename, image.
     """
 
-    def __init__(self, dataset_directory, transform, background_color):
+    def __init__(self, dataset_directory, dataset, transform, background_color):
         self.dataset_path = dataset_directory
         all_images = os.listdir(dataset_directory)
         approved_images = []
         done = set()
-        # We want only one sprite per Pokemon form
-        # For consistency we try to use the most recent game sprites
-        for image in all_images:
-            image_id = image.split("_")[0]
-            if image_id in done:
-                continue
-            image_formats = [
-                f"{image_id}_base_bw.png",
-                f"{image_id}_base_hgss.png",
-                f"{image_id}_base_plat.png",
-                f"{image_id}_base_dp.png"
-            ]
-            for image in image_formats:
-                if image in all_images:
-                    approved_images.append(image)
-                    done.add(image_id)
-                    break
-            else:
-                print(f"Exception. No matching image found for: {image_id}")
+        if dataset == "pokemon-sprites":
+            # We want only one sprite per Pokemon form
+            # For consistency we try to use the most recent game sprites
+            for image in all_images:
+                image_id = image.split("_")[0]
+                if image_id in done:
+                    continue
+                image_formats = [
+                    f"{image_id}_base_bw.png",
+                    f"{image_id}_base_hgss.png",
+                    f"{image_id}_base_plat.png",
+                    f"{image_id}_base_dp.png"
+                ]
+                for image in image_formats:
+                    if image in all_images:
+                        approved_images.append(image)
+                        done.add(image_id)
+                        break
+                else:
+                    print(f"Exception. No matching image found for: {image_id}")
+        elif dataset == "tinyhero":
+            # No special instructions needed
+            approved_images = all_images
         self.all_images = approved_images
         self.transform = transform
         self.background = background_color  # Tuple (R,G,B)
+        self.dataset = dataset
 
     def __getitem__(self, index):
         filename = self.all_images[index]
