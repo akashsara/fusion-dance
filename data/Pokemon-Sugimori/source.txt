@@ -1,2 +1,0 @@
-https://veekun.com/static/pokedex/downloads/pokemon-sugimori.tar.gz
-Note that some images in this are empty images and must be deleted.

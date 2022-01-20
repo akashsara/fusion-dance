@@ -24,15 +24,9 @@ import sys
 import random
 import numpy as np
 
-input_dir = sys.argv[1]
-output_dir = sys.argv[2]
-num_test = int(sys.argv[3])
-num_valid = int(sys.argv[4])
-rotations = []
-use_noise = True
-
-
 def change_background_color(image, color):
+    if color == "none":
+        return image.convert("RGB")
     if color == "black":
         background = Image.new("RGBA", image.size, (0, 0, 0))
     elif color == "white":
@@ -42,6 +36,13 @@ def change_background_color(image, color):
         background = Image.fromarray(np.random.normal(0, 1, image_size), mode="RGBA")
     return Image.alpha_composite(background, image).convert("RGB")
 
+input_dir = sys.argv[1]
+output_dir = sys.argv[2]
+num_test = int(sys.argv[3])
+num_valid = int(sys.argv[4])
+rotations = [15, 30]
+use_noise = True
+colors = ["white", "black"]
 
 # Create Folders
 if not os.path.exists(output_dir):
@@ -76,7 +77,7 @@ for input_file in os.listdir(input_dir):
     # Find directory to save to
     input_file_name = input_file.split(".")[0]
     image_id = input_file_name.split("_")[0].split("-")[0]
-    colors = ["white", "black"]
+    
     if image_id in test:
         save_dir = os.path.join(output_dir, "test")
         all_test.append(image_id)

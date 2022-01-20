@@ -6,9 +6,8 @@ data/MNIST
 data/Pokemon/*
 data/TinyHero/*
 data/Pokemon-Sugimori/*
+data/Sprites/*
 !data/Pokemon/original_data.zip
-!data/TinyHero/original.zip
-!data/Pokemon-Sugimori/source.txt
 outputs/
 fusions/
 *.npy
