@@ -1,3 +1,4 @@
+# NOTE: Only supports Pokemon at the moment.
 import os
 import sys
 

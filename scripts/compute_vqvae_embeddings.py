@@ -18,15 +18,13 @@ _ = torch.manual_seed(seed)
 #################################### Config ####################################
 ################################################################################
 
-mode = "embeddings"  # embeddings or edncodings
-
 # VQ-VAE Config
 vq_vae_image_size = 64
-vq_vae_experiment_name = f"tinyhero_vq_vae_v2.1"
+vq_vae_experiment_name = f"sprites_vq_vae_v2"
 vq_vae_num_layers = 1
 vq_vae_max_filters = 512
 vq_vae_use_max_filters = True
-vq_vae_num_embeddings = 512
+vq_vae_num_embeddings = 256
 vq_vae_embedding_dim = 32
 vq_vae_commitment_cost = 0.25
 vq_vae_small_conv = True  # To use the 1x1 convolution layer
@@ -43,8 +41,13 @@ pokedex = pokedex["Name"].to_dict()
 batch_size = 32
 num_dataloader_workers = 0
 background = (255, 255, 255)
-data_folder = "data\\TinyHero\\processed" # "data\\pokemon\\original_data"
-dataset = "tinyhero"
+dataset = "sprites" # "pokemon", "tinyhero", "sprites"
+data_folder_lookup = {
+    "pokemon": "data\\pokemon\\original_data",
+    "tinyhero": "data\\TinyHero\\processed",
+    "sprites": "data\Sprites\processed"
+}
+data_folder = data_folder_lookup[dataset]
 
 model_prefix = f"outputs\\{vq_vae_experiment_name}"
 model_path = os.path.join(model_prefix, "model.pt")
@@ -86,6 +89,7 @@ model.eval()
 model.to(device)
 
 all_embeddings = []
+all_encodings = []
 all_filenames = []
 all_color_ids = []
 with torch.no_grad():
@@ -97,20 +101,18 @@ with torch.no_grad():
         # Get Encodings from vq_vae
         current_batch_size = len(batch)
         _, _, _, encodings = model(batch)
-        if mode == "encodings":
-            embeddings = encodings.reshape(current_batch_size, -1)
-        elif mode == "embeddings":
-            target_shape = (
-                current_batch_size,
-                vq_vae_embedding_size,
-                vq_vae_embedding_size,
-                vq_vae_embedding_dim,
-            )
-            embeddings = model.vq_vae.quantize_encoding_indices(
-                encodings, target_shape, device
-            )
+        target_shape = (
+            current_batch_size,
+            vq_vae_embedding_size,
+            vq_vae_embedding_size,
+            vq_vae_embedding_dim,
+        )
+        embeddings = model.vq_vae.quantize_encoding_indices(
+            encodings, target_shape, device
+        )
         # Add embeddings to list
         all_embeddings.append(embeddings)
+        all_encodings.append(encodings.reshape(current_batch_size, -1))
         # Add filenames (with Pokemon name instead of ID) to list
         for filename in filenames:
             if "pokemon" in dataset:
@@ -118,16 +120,23 @@ with torch.no_grad():
                 pokemon_id = filename.split("-")[0].split(".")[0]
                 filename = filename.replace(pokemon_id, pokedex[int(pokemon_id)])
                 all_color_ids.append(pokemon_types[int(pokemon_id)])
-            else:
+            elif dataset == "tinyhero":
                 color = filename.split('.')[0].split('_')[1]
                 all_color_ids.append(color)
+            elif dataset == "sprites":
+                id, pose, anim = filename.split('.')[0].split('_')
+                all_color_ids.append([id, pose, anim])
             all_filenames.append(filename)
 # Save to file
 all_embeddings = torch.cat(all_embeddings).detach().cpu()
-if mode == "encodings":
-    all_embeddings = all_embeddings.float() / vq_vae_num_embeddings
+all_encodings = all_encodings.float() / vq_vae_num_embeddings
 
 torch.save(
     {"embeddings": all_embeddings, "filenames": all_filenames, "color": all_color_ids},
-    os.path.join(model_prefix, f"{mode}.pt"),
+    os.path.join(model_prefix, f"embeddings.pt"),
 )
+torch.save(
+    {"embeddings": all_encodings, "filenames": all_filenames, "color": all_color_ids},
+    os.path.join(model_prefix, f"encodings.pt"),
+)
+

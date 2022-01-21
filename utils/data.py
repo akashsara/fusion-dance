@@ -115,7 +115,7 @@ class CustomDatasetNoMemoryAddBackground(torch.utils.data.Dataset):
                         break
                 else:
                     print(f"Exception. No matching image found for: {image_id}")
-        elif dataset == "tinyhero":
+        elif dataset in ["tinyhero", "sprites"]:
             # No special instructions needed
             approved_images = all_images
         self.all_images = approved_images
@@ -126,9 +126,13 @@ class CustomDatasetNoMemoryAddBackground(torch.utils.data.Dataset):
     def __getitem__(self, index):
         filename = self.all_images[index]
         image_path = os.path.join(self.dataset_path, filename)
-        image = Image.open(image_path).convert("RGBA")
-        background = Image.new("RGBA", image.size, self.background)
-        image = Image.alpha_composite(background, image).convert("RGB")
+        if self.dataset != "sprites":
+            # Sprites dataset has an existing black background
+            image = Image.open(image_path).convert("RGBA")
+            background = Image.new("RGBA", image.size, self.background)
+            image = Image.alpha_composite(background, image).convert("RGB")
+        else:
+            image = Image.open(image_path).convert("RGB")
         processed = self.transform(image)
         return filename, processed
 
