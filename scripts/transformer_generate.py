@@ -3,11 +3,10 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import torch.nn as nn
 from tqdm import tqdm
-
+import sys
+sys.path.append("./")
 import utils.data as data
-import utils.graphics as graphics
 from models import vqvae
 from transformers import GPT2LMHeadModel, GPT2Config
 
@@ -18,8 +17,6 @@ _ = torch.manual_seed(seed)
 ################################################################################
 #################################### Config ####################################
 ################################################################################
-
-experiment_name = f"transformer_prior_v1"
 
 # VQ-VAE Config
 vq_vae_image_size = 64
@@ -33,18 +30,19 @@ vq_vae_commitment_cost = 0.25
 vq_vae_small_conv = True  # To use the 1x1 convolution layer
 
 # Transformer Prior Config
+transformer_experiment_name = f"transformer_prior_v2.1"
 image_size = vq_vae_image_size // (2 ** vq_vae_num_layers)
 max_seq_length = image_size * image_size
 vocab_size = vq_vae_num_embeddings
-embedding_size = 768  # Default: 768
-num_hidden_layers = 12  # Default: 12
-num_attention_heads = 12  # Default: 12
-resid_pdrop = 0.1 # Default: 0.1
+embedding_size = 512  # Default: 768
+num_hidden_layers = 4  # Default: 12
+num_attention_heads = 4  # Default: 12
+resid_pdrop = 0.5 # Default: 0.1
 
 # Generation Config
 generation_batches = 5
 generation_batch_size = 32
-generation_temperature = 1
+generation_temperature = 0.5
 # If set to int > 0, all ngrams of that size can only occur once.
 no_repeat_ngram_size = 0 
 num_beams = 1 # Number of beam searches
@@ -58,16 +56,16 @@ batch_size = 32
 num_dataloader_workers = 0
 use_noise_images = False
 data_prefix = "data\\pokemon\\final\\standard"
-output_prefix = f"data\\{experiment_name}"
-vq_vae_model_prefix = f"outputs\\{vq_vae_experiment_name}"
-vq_vae_model_path = os.path.join(vq_vae_model_prefix, "model.pt")
+output_prefix = f"data\\{transformer_experiment_name}"
+model_prefix = f"outputs\\{vq_vae_experiment_name}"
+vq_vae_model_path = os.path.join(model_prefix, "model.pt")
 
 train_data_folder = os.path.join(data_prefix, "train")
 val_data_folder = os.path.join(data_prefix, "val")
 test_data_folder = os.path.join(data_prefix, "test")
 
 generated_dir = os.path.join(output_prefix, "generated")
-model_output_path = os.path.join(output_prefix, "model.pt")
+model_output_path = os.path.join(model_prefix, f"{transformer_experiment_name}.pt")
 
 # Setup Device
 gpu = torch.cuda.is_available()
@@ -125,7 +123,7 @@ with torch.no_grad():
     bg1, bg2 = encodings[counts.topk(k=2, largest=True).indices].cpu().numpy()
 
     # Generate New Images
-    for i in range(generation_batches):
+    for i in tqdm(range(generation_batches)):
         bg1_inputs = torch.zeros((generation_batch_size // 2, 1)).int() + bg1
         bg2_inputs = torch.zeros((generation_batch_size // 2, 1)).int() + bg2
         input_ids = torch.cat((bg1_inputs, bg2_inputs)).to(device)
