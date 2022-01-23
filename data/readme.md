@@ -24,3 +24,6 @@
 1. Extract and download the files from https://github.com/AgaMiko/pixel_character_generator.
 2. Run `rename_tiny_hero_files.py` on the dataset.
 3. Run the preprocessing script `../preprocess.py` on the dataset.
+
+# Pokemon Data CSV (for Embedding Analysis)
+1. https://www.kaggle.com/mariotormo/complete-pokemon-dataset-updated-090420
