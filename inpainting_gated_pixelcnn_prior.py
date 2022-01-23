@@ -48,6 +48,7 @@ sample_batch_size = batch_size
 num_sample_batches = 5
 use_bits_per_dimension_loss = False
 use_dilation = True
+use_modified_model = True
 
 # Data Config
 data_prefix = "data\\pokemon\\inpainting"
@@ -133,13 +134,22 @@ vq_vae.eval()
 vq_vae.to(device)
 
 # Create Model
-model = gated_pixelcnn.PixelCNN(
-    c_in=input_channels,
-    c_hidden=hidden_channels,
-    num_classes=num_classes,
-    kernel_size=kernel_size,
-    use_dilation=use_dilation,
-)
+if use_modified_model:
+    model = gated_pixelcnn.InpaintingPixelCNN(
+        c_in=input_channels,
+        c_hidden=hidden_channels,
+        num_classes=num_classes,
+        kernel_size=kernel_size,
+        use_dilation=use_dilation,
+    )
+else:
+    model = gated_pixelcnn.PixelCNN(
+        c_in=input_channels,
+        c_hidden=hidden_channels,
+        num_classes=num_classes,
+        kernel_size=kernel_size,
+        use_dilation=use_dilation,
+    )
 model.to(device)
 print(model)
 
