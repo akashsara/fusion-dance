@@ -20,23 +20,21 @@ _ = torch.manual_seed(seed)
 #################################### Config ####################################
 ################################################################################
 learning_rate = 1e-4
-epochs = 1
+epochs = 25
 batch_size = 32
 num_dataloader_workers = 0
 image_size = 64
-use_noise_images = True
-load_data_to_memory = False
 
-experiment_name = f"gated_pixelcnn_v1"
+experiment_name = f"inpainting_pixelcnn_v1"
 
 # VQ-VAE Config
 mode = "discrete"
-vq_vae_experiment_name = f"vq_vae_v5.17"
-vq_vae_num_layers = 2
+vq_vae_experiment_name = f"vq_vae_v5.8"
+vq_vae_num_layers = 1
 vq_vae_max_filters = 512
 vq_vae_use_max_filters = True
-vq_vae_num_embeddings = 1024
-vq_vae_embedding_dim = 64
+vq_vae_num_embeddings = 256
+vq_vae_embedding_dim = 32
 vq_vae_commitment_cost = 0.25
 vq_vae_small_conv = True  # To use the 1x1 convolution layer
 
@@ -52,17 +50,17 @@ use_bits_per_dimension_loss = False
 use_dilation = True
 
 # Data Config
-data_prefix = "data\\pokemon\\final\\standard"
+data_prefix = "data\\pokemon\\inpainting"
 output_prefix = f"data\\{experiment_name}"
 vq_vae_model_prefix = f"outputs\\{vq_vae_experiment_name}"
 vq_vae_model_path = os.path.join(vq_vae_model_prefix, "model.pt")
 
-train_data_folder = os.path.join(data_prefix, "train")
-val_data_folder = os.path.join(data_prefix, "val")
-test_data_folder = os.path.join(data_prefix, "test")
+train_dir = os.path.join(data_prefix, "train")
+val_dir = os.path.join(data_prefix, "val")
+test_dir = os.path.join(data_prefix, "test")
 
 output_dir = os.path.join(output_prefix, "generated")
-loss_output_path = os.path.join(output_prefix, "loss.jpg")
+loss_output_path = output_prefix
 model_output_path = os.path.join(output_prefix, "model.pt")
 ################################################################################
 ##################################### Setup ####################################
@@ -84,19 +82,9 @@ if not os.path.exists(output_dir):
 # Preprocess & Create Data Loaders
 transform = data.image2tensor_resize(image_size)
 
-if load_data_to_memory:
-    # Load Data
-    train = data.load_images_from_folder(train_data_folder, use_noise_images)
-    val = data.load_images_from_folder(val_data_folder, use_noise_images)
-    test = data.load_images_from_folder(test_data_folder, use_noise_images)
-
-    train_data = data.CustomDataset(train, transform)
-    val_data = data.CustomDataset(val, transform)
-    test_data = data.CustomDataset(test, transform)
-else:
-    train_data = data.CustomDatasetNoMemory(train_data_folder, transform, use_noise_images)
-    val_data = data.CustomDatasetNoMemory(val_data_folder, transform, use_noise_images)
-    test_data = data.CustomDatasetNoMemory(test_data_folder, transform, use_noise_images)
+train_data = data.InpaintingDataset(train_dir, transform)
+val_data = data.InpaintingDataset(val_dir, transform)
+test_data = data.InpaintingDataset(test_dir, transform)
 
 train_dataloader = torch.utils.data.DataLoader(
     train_data,
@@ -119,7 +107,6 @@ test_dataloader = torch.utils.data.DataLoader(
     num_workers=num_dataloader_workers,
     pin_memory=gpu,
 )
-
 # Creating a sample set to visualize the model's training
 sample = data.get_samples_from_data(val_data, 16)
 
@@ -178,18 +165,21 @@ for epoch in range(epochs):
         optimizer.zero_grad()
 
         # Move batch to device
-        _, batch = batch  # (names), (images)
-        batch = batch.to(device)
-        current_batch_size = batch.shape[0]
+        _, inputs, outputs = batch  # (names), (images)
+        inputs = inputs.to(device)
+        outputs = outputs.to(device)
+        current_batch_size = inputs.shape[0]
 
         with torch.no_grad():
             # Get Encodings from vq_vae
-            _, _, _, encodings = vq_vae(batch)
-            x = encodings.reshape(current_batch_size, 1, input_dim, input_dim)
+            _, _, _, encodings = vq_vae(inputs)
+            inputs = encodings.reshape(current_batch_size, 1, input_dim, input_dim)
+            _, _, _, labels = vq_vae(outputs)
+            labels = labels.reshape(current_batch_size, 1, input_dim, input_dim)
 
         # Run our model & get outputs
-        y_hat = model.forward(x)
-        batch_loss = criterion(y_hat, x)
+        y_hat = model.forward(inputs)
+        batch_loss = criterion(y_hat, labels)
 
         # Backprop
         batch_loss.backward()
@@ -205,18 +195,20 @@ for epoch in range(epochs):
     with torch.no_grad():
         for iteration, batch in enumerate(tqdm(val_dataloader)):
             # Move batch to device
-            _, batch = batch  # (names), (images)
-            batch = batch.to(device)
-            current_batch_size = batch.shape[0]
+            _, inputs, outputs = batch  # (names), (images)
+            inputs = inputs.to(device)
+            outputs = outputs.to(device)
+            current_batch_size = inputs.shape[0]
 
-            with torch.no_grad():
-                # Get Encodings from vq_vae
-                _, _, _, encodings = vq_vae(batch)
-                x = encodings.reshape(current_batch_size, 1, input_dim, input_dim)
+            # Get Encodings from vq_vae
+            _, _, _, encodings = vq_vae(inputs)
+            inputs = encodings.reshape(current_batch_size, 1, input_dim, input_dim)
+            _, _, _, labels = vq_vae(outputs)
+            labels = labels.reshape(current_batch_size, 1, input_dim, input_dim)
 
             # Run our model & get outputs
-            y_hat = model.forward(x)
-            batch_loss = criterion(y_hat, x)
+            y_hat = model.forward(inputs)
+            batch_loss = criterion(y_hat, labels)
 
             # Add the batch's loss to the total loss for the epoch
             val_loss += batch_loss.item()
@@ -261,18 +253,20 @@ test_loss = 0
 with torch.no_grad():
     for iteration, batch in enumerate(tqdm(test_dataloader)):
         # Move batch to device
-        _, batch = batch  # (names), (images)
-        batch = batch.to(device)
-        current_batch_size = batch.shape[0]
+        _, inputs, outputs = batch  # (names), (images)
+        inputs = inputs.to(device)
+        outputs = outputs.to(device)
+        current_batch_size = inputs.shape[0]
 
-        with torch.no_grad():
-            # Get Encodings from vq_vae
-            _, _, _, encodings = vq_vae(batch)
-            x = encodings.reshape(current_batch_size, 1, input_dim, input_dim)
+        # Get Encodings from vq_vae
+        _, _, _, encodings = vq_vae(inputs)
+        inputs = encodings.reshape(current_batch_size, 1, input_dim, input_dim)
+        _, _, _, labels = vq_vae(outputs)
+        labels = labels.reshape(current_batch_size, 1, input_dim, input_dim)
 
         # Run our model & get outputs
-        y_hat = model.forward(x)
-        batch_loss = criterion(y_hat, x)
+        y_hat = model.forward(inputs)
+        batch_loss = criterion(y_hat, labels)
 
         # Add the batch's loss to the total loss for the epoch
         test_loss += batch_loss.item()

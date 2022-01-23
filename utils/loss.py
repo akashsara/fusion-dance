@@ -1,5 +1,12 @@
 import torch
 import torch.nn as nn
+import numpy as np
+
+
+def bits_per_dimension_loss(x_pred, x):
+    nll = nn.functional.cross_entropy(x_pred, x, reduction="none")
+    bpd = nll.mean(dim=[1, 2, 3]) * np.log2(np.exp(1))
+    return bpd.mean()
 
 
 def rmse_loss(reconstructed_x, x, use_sum, epsilon=1e-8):

@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torchvision import transforms
 import numpy as np
+import joblib
 
 from PIL import Image
 import os
@@ -95,7 +96,7 @@ class CustomDatasetNoMemoryAddBackground(torch.utils.data.Dataset):
         all_images = os.listdir(dataset_directory)
         approved_images = []
         done = set()
-        if dataset == "pokemon-sprites":
+        if "pokemon" in dataset:
             # We want only one sprite per Pokemon form
             # For consistency we try to use the most recent game sprites
             for image in all_images:
@@ -106,7 +107,7 @@ class CustomDatasetNoMemoryAddBackground(torch.utils.data.Dataset):
                     f"{image_id}_base_bw.png",
                     f"{image_id}_base_hgss.png",
                     f"{image_id}_base_plat.png",
-                    f"{image_id}_base_dp.png"
+                    f"{image_id}_base_dp.png",
                 ]
                 for image in image_formats:
                     if image in all_images:
@@ -138,6 +139,27 @@ class CustomDatasetNoMemoryAddBackground(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.all_images)
+
+
+class InpaintingDataset(torch.utils.data.Dataset):
+    def __init__(self, dataset_path, transform):
+        self.dataset_path = dataset_path
+        index_path = os.path.join(dataset_path, "index.joblib")
+        self.dataset_index = joblib.load(index_path)
+        self.transform = transform
+
+    def __getitem__(self, index):
+        filename = self.dataset_index[index]
+        src_filename = os.path.join(self.dataset_path, "inputs", filename)
+        target_filename = os.path.join(self.dataset_path, "labels", filename)
+        src = Image.open(src_filename).convert("RGB")
+        target = Image.open(target_filename).convert("RGB")
+        src = self.transform(src)
+        target = self.transform(target)
+        return filename, src, target
+
+    def __len__(self):
+        return len(self.dataset_index)
 
 
 class FusionDataset(torch.utils.data.Dataset):
