@@ -20,7 +20,7 @@ _ = torch.manual_seed(seed)
 
 # VQ-VAE Config
 vq_vae_image_size = 64
-vq_vae_experiment_name = f"sprites_vq_vae_v2"
+vq_vae_experiment_name = f"vq_vae_v5.8"
 vq_vae_num_layers = 1
 vq_vae_max_filters = 512
 vq_vae_use_max_filters = True
@@ -30,24 +30,33 @@ vq_vae_commitment_cost = 0.25
 vq_vae_small_conv = True  # To use the 1x1 convolution layer
 vq_vae_embedding_size = vq_vae_image_size // (2 ** vq_vae_num_layers)
 
-# Pokedex
-pokedex_url = "https://raw.githubusercontent.com/lgreski/pokemonData/master/Pokemon.csv"
-pokedex = pd.read_csv(pokedex_url).drop_duplicates(["ID", "Name"])
-pokedex.index = pokedex.ID
-pokemon_types = pokedex["Type1"].to_dict()
-pokedex = pokedex["Name"].to_dict()
-
 # Data Config
 batch_size = 32
 num_dataloader_workers = 0
 background = (255, 255, 255)
-dataset = "sprites" # "pokemon", "tinyhero", "sprites"
+dataset = "pokemon" # "pokemon", "tinyhero", "sprites"
 data_folder_lookup = {
     "pokemon": "data\\pokemon\\original_data",
     "tinyhero": "data\\TinyHero\\processed",
     "sprites": "data\Sprites\processed"
 }
 data_folder = data_folder_lookup[dataset]
+pokedex_url = "data\\Pokemon\\pokedex_(Update_04.21).csv"
+
+# Pokedex
+if "pokemon" in dataset:
+    pokedex = pd.read_csv(pokedex_url)
+    for forbidden in ["Mega ", "Partner ", "Alolan ", "Galarian "]:
+        pokedex.drop(pokedex[pokedex['name'].str.contains(forbidden)].index, inplace=True)
+    pokedex.drop_duplicates(["pokedex_number", "name"], inplace=True)
+    pokedex.index = pokedex.pokedex_number
+    names = pokedex["name"].to_dict()
+    height = pokedex["height_m"].to_dict()
+    weight = pokedex["weight_kg"].to_dict()
+    type1 = pokedex["type_1"].to_dict()
+    type2 = pokedex["type_2"].to_dict()
+    egg1 = pokedex["egg_type_1"].to_dict()
+    egg2 = pokedex["egg_type_2"].to_dict()
 
 model_prefix = f"outputs\\{vq_vae_experiment_name}"
 model_path = os.path.join(model_prefix, "model.pt")
@@ -118,8 +127,17 @@ with torch.no_grad():
             if "pokemon" in dataset:
                 filename = filename.split("_")[0]
                 pokemon_id = filename.split("-")[0].split(".")[0]
-                filename = filename.replace(pokemon_id, pokedex[int(pokemon_id)])
-                all_color_ids.append(pokemon_types[int(pokemon_id)])
+                pokemon_id_int = int(pokemon_id)
+                filename = filename.replace(pokemon_id, names[pokemon_id_int])
+                colors = [
+                    height[pokemon_id_int], 
+                    weight[pokemon_id_int], 
+                    type1[pokemon_id_int],
+                    type2[pokemon_id_int],
+                    egg1[pokemon_id_int],
+                    egg2[pokemon_id_int],
+                ]
+                all_color_ids.append(colors)
             elif dataset == "tinyhero":
                 color = filename.split('.')[0].split('_')[1]
                 all_color_ids.append(color)
@@ -129,7 +147,7 @@ with torch.no_grad():
             all_filenames.append(filename)
 # Save to file
 all_embeddings = torch.cat(all_embeddings).detach().cpu()
-all_encodings = all_encodings.float() / vq_vae_num_embeddings
+all_encodings = torch.cat(all_encodings).detach().cpu().float() / vq_vae_num_embeddings
 
 torch.save(
     {"embeddings": all_embeddings, "filenames": all_filenames, "color": all_color_ids},
