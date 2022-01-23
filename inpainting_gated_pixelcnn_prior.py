@@ -60,6 +60,7 @@ val_dir = os.path.join(data_prefix, "val")
 test_dir = os.path.join(data_prefix, "test")
 
 output_dir = os.path.join(output_prefix, "generated")
+recon_output_dir = os.path.join(output_prefix, "reconstructed")
 loss_output_path = output_prefix
 model_output_path = os.path.join(output_prefix, "model.pt")
 ################################################################################
@@ -74,6 +75,8 @@ print(gpu, device)
 # Create Output Paths
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
+if not os.path.exists(recon_output_dir):
+    os.makedirs(recon_output_dir)
 
 ################################################################################
 ################################## Data Setup ##################################
@@ -253,7 +256,7 @@ test_loss = 0
 with torch.no_grad():
     for iteration, batch in enumerate(tqdm(test_dataloader)):
         # Move batch to device
-        _, inputs, outputs = batch  # (names), (images)
+        filenames, inputs, outputs = batch  # (names), (images)
         inputs = inputs.to(device)
         outputs = outputs.to(device)
         current_batch_size = inputs.shape[0]
@@ -270,6 +273,20 @@ with torch.no_grad():
 
         # Add the batch's loss to the total loss for the epoch
         test_loss += batch_loss.item()
+
+        # Save to disk
+        target_shape = (
+            y_hat.shape[0],
+            input_dim,
+            input_dim,
+            vq_vae_embedding_dim,
+        )
+        y_hat = y_hat.argmax(dim=1).flatten(start_dim=1).view(-1, 1)
+        y_hat = vq_vae.quantize_and_decode(y_hat, target_shape, device)
+        y_hat = y_hat.permute(0, 2, 3, 1).detach().cpu().numpy()
+        for image, filename in zip(y_hat, filenames):
+            plt.imsave(os.path.join(recon_output_dir, filename), image)
+
 test_loss = test_loss / len(test_dataloader)
 print(f"Test Loss: {test_loss}")
 
