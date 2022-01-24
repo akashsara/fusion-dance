@@ -9,7 +9,7 @@ def bits_per_dimension_loss(x_pred, x):
     return bpd.mean()
 
 
-def rmse_loss(reconstructed_x, x, use_sum, epsilon=1e-8):
+def rmse_loss(reconstructed_x, x, use_sum=False, epsilon=1e-8):
     """
     We use epsilon to avoid NaN during backprop if mse = 0.
     Ref: https://discuss.pytorch.org/t/rmse-loss-function/16540/6
@@ -21,28 +21,28 @@ def rmse_loss(reconstructed_x, x, use_sum, epsilon=1e-8):
     return torch.sqrt(mse + epsilon)
 
 
-def mse_loss(reconstructed_x, x, use_sum):
+def mse_loss(reconstructed_x, x, use_sum=False):
     if use_sum:
         return nn.functional.mse_loss(reconstructed_x, x, reduction="sum")
     else:
         return nn.functional.mse_loss(reconstructed_x, x, reduction="mean")
 
 
-def bce_loss(reconstructed_x, x, use_sum):
+def bce_loss(reconstructed_x, x, use_sum=False):
     if use_sum:
         return nn.functional.binary_cross_entropy(reconstructed_x, x, reduction="sum")
     else:
         return nn.functional.binary_cross_entropy(reconstructed_x, x, reduction="mean")
 
 
-def crossentropy_loss(reconstructed_x, x, use_sum):
+def crossentropy_loss(reconstructed_x, x, use_sum=False):
     if use_sum:
         return nn.functional.cross_entropy(reconstructed_x, x, reduction="sum")
     else:
         return nn.functional.cross_entropy(reconstructed_x, x, reduction="mean")
 
 
-def kl_divergence(mu, log_var, use_sum):
+def kl_divergence(mu, log_var, use_sum=False):
     # Assumes a standard normal distribution for the 2nd gaussian
     inner_element = 1 + log_var - mu.pow(2) - log_var.exp()
     if use_sum:
@@ -51,7 +51,7 @@ def kl_divergence(mu, log_var, use_sum):
         return -0.5 * torch.sum(inner_element, dim=1).mean()
 
 
-def kl_divergence_two_gaussians(mu1, log_var1, mu2, log_var2, use_sum):
+def kl_divergence_two_gaussians(mu1, log_var1, mu2, log_var2, use_sum=False):
     # https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians
     # Verify by setting mu2=torch.zeros((shape)), log_var2=torch.zeros((shape))
     # We use 0s for logvar since log 1 = 0.
@@ -65,7 +65,7 @@ def kl_divergence_two_gaussians(mu1, log_var1, mu2, log_var2, use_sum):
 
 
 def mse_ssim_loss(
-    reconstructed_x, x, use_sum, ssim_module=None, mse_weight=1, ssim_weight=1
+    reconstructed_x, x, use_sum=False, ssim_module=None, mse_weight=1, ssim_weight=1
 ):
     mse = mse_weight * mse_loss(reconstructed_x, x, use_sum)
     if ssim_module:
