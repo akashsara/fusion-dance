@@ -42,6 +42,7 @@ num_test = int(sys.argv[3])
 num_valid = int(sys.argv[4])
 rotations = [15, 30]
 use_noise = True
+do_a_flip = True
 colors = ["white", "black"]
 
 # Create Folders
@@ -117,9 +118,10 @@ for input_file in os.listdir(input_dir):
             prev_angle = angle
 
         # Horizontal Flip
-        if "noise" in color:
-            new_sprite = change_background_color(sprite, color)
-        new_sprite = new_sprite.transpose(Image.FLIP_LEFT_RIGHT)
-        output_file = f"{input_file_name}_{color}BG_flipped.png"
-        new_sprite.save(os.path.join(save_dir, output_file))
+        if do_a_flip:
+            if "noise" in color:
+                new_sprite = change_background_color(sprite, color)
+            new_sprite = new_sprite.transpose(Image.FLIP_LEFT_RIGHT)
+            output_file = f"{input_file_name}_{color}BG_flipped.png"
+            new_sprite.save(os.path.join(save_dir, output_file))
 print(f"Train: {len(all_train)}\nVal: {len(all_val)}\nTest: {len(all_test)}")
