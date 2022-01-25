@@ -10,7 +10,7 @@ from tqdm import tqdm
 import utils.data as data
 import utils.graphics as graphics
 import utils.loss as loss
-from models import vqvae, vae
+from models import vqvae, vae, cnn_prior
 
 seed = 42
 np.random.seed(seed)
@@ -43,10 +43,12 @@ input_dim = image_size // (2 ** vq_vae_num_layers)
 num_classes = vq_vae_num_embeddings
 num_layers = input_dim // 16
 max_filters = 512 
-latent_dim = 256
+latent_dim = 256 # Only for model_type: vae
 # Discrete: Treat encodings as "words" and use an embedding layer
 # Continuous: Treat encodings as pixel values (divide by num_classes)
-mode = "continuous"
+mode = "discrete" # discrete/continuous
+# Use a VAE architecture or just a bunch of conv blocks
+model_type = "vae" # vae/normal
 
 # Data Config
 data_prefix = "data\\pokemon\\inpainting"
@@ -64,6 +66,11 @@ model_output_path = os.path.join(output_prefix, "model.pt")
 ################################################################################
 ##################################### Setup ####################################
 ################################################################################
+assert mode in ["discrete", "continuous"]
+assert model_type in ["vae", "normal"]
+if model_type == "normal":
+    print("No discrete version of the non-vae model.")
+    assert mode == "continuous"
 
 # Setup Device
 gpu = torch.cuda.is_available()
@@ -129,14 +136,21 @@ vq_vae.to(device)
 
 # Create Model
 if mode == "continuous":
-    model = vae.ConvolutionalVAE(
-        image_channels=input_channels,
-        max_filters=max_filters,
-        num_layers=num_layers,
-        latent_dim=latent_dim,
-        input_image_dimensions=input_dim,
-        small_conv=False,
-    )
+    if model_type == "vae":
+        model = vae.ConvolutionalVAE(
+            image_channels=input_channels,
+            max_filters=max_filters,
+            num_layers=num_layers,
+            latent_dim=latent_dim,
+            input_image_dimensions=input_dim,
+            small_conv=False,
+        )
+    else:
+        model = cnn_prior.InfillingCNNPrior(
+            num_layers=num_layers,
+            max_filters=max_filters,
+            input_channels=1
+        )
 else:
     model = vae.VAEPrior(
         max_filters=max_filters,
@@ -144,7 +158,7 @@ else:
         latent_dim=latent_dim,
         input_dimensions=input_dim,
         small_conv=False,
-        num_classes=vq_vae_num_embeddings,
+        num_classes=num_classes,
     )
 model.to(device)
 print(model)
@@ -192,7 +206,10 @@ for epoch in range(epochs):
                 labels = labels.squeeze()
 
         # Run our model & get outputs
-        y_hat, _, _ = model.forward(inputs)
+        if model_type == "vae":
+            y_hat, _, _ = model.forward(inputs)
+        else:
+            y_hat = model.forward(inputs)
         batch_loss = criterion(y_hat, labels)
 
         # Backprop
@@ -226,7 +243,10 @@ for epoch in range(epochs):
                 labels = labels.squeeze()
 
             # Run our model & get outputs
-            y_hat, _, _ = model.forward(inputs)
+            if model_type == "vae":
+                y_hat, _, _ = model.forward(inputs)
+            else:
+                y_hat = model.forward(inputs)
             batch_loss = criterion(y_hat, labels)
 
             # Add the batch's loss to the total loss for the epoch
@@ -289,7 +309,10 @@ with torch.no_grad():
             labels = labels.squeeze()
 
         # Run our model & get outputs
-        y_hat, _, _ = model.forward(inputs)
+        if model_type == "vae":
+            y_hat, _, _ = model.forward(inputs)
+        else:
+            y_hat = model.forward(inputs)
         batch_loss = criterion(y_hat, labels)
 
         # Add the batch's loss to the total loss for the epoch

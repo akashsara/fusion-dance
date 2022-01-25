@@ -165,3 +165,52 @@ class CNNPriorV3(nn.Module):
         x1 = self.encoder(x1)
         x2 = self.encoder(x2)
         return self.decoder(torch.cat([x1, x2], dim=1))
+
+
+class InfillingCNNPrior(nn.Module):
+    def __init__(self, num_layers, max_filters, input_channels=1):
+        super(InfillingCNNPrior, self).__init__()
+
+        layers = nn.ModuleList()
+        assert max_filters % num_layers == 0
+        # Conv Layers
+        in_channels = input_channels
+        out_channels = max_filters // 2 ** num_layers
+        for i in range(num_layers):
+            layers.append(
+                nn.Conv2d(
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    kernel_size=2,
+                    stride=2,
+                )
+            )
+            layers.append(nn.BatchNorm2d(out_channels))
+            layers.append(nn.ReLU(True))
+            if i != num_layers - 1:
+                in_channels = out_channels
+                out_channels = out_channels * 2
+        # Transposed Conv Layers
+        for i in range(num_layers):
+            in_channels = out_channels
+            if i == num_layers - 1:
+                out_channels = input_channels
+            else:
+                out_channels = out_channels // 2
+            layers.append(
+                nn.ConvTranspose2d(
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    kernel_size=2,
+                    stride=2,
+                )
+            )
+            layers.append(nn.BatchNorm2d(out_channels))
+            if i == num_layers - 1:
+                layers.append(nn.Sigmoid())
+            else:
+                layers.append(nn.ReLU(True))
+        self.model = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.model(x)
