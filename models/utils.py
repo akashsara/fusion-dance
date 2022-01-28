@@ -24,3 +24,15 @@ def set_learning_rate(optimizer, learning_rate):
     for group in optimizer.param_groups:
         group["lr"] = learning_rate
     return optimizer
+
+def weights_init(m, mean=0.0, std=0.02):
+    """
+    Custom weight initialization function.
+    Sample weights from a normal distribution.
+    """
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        nn.init.normal_(m.weight.data, mean, std)
+    elif classname.find('BatchNorm') != -1:
+        nn.init.normal_(m.weight.data, 1.0, std)
+        nn.init.constant_(m.bias.data, 0)

@@ -3,6 +3,7 @@ import torch.nn as nn
 from torchvision import transforms
 import numpy as np
 import joblib
+import random
 
 from PIL import Image
 import os
@@ -86,11 +87,9 @@ class CustomDatasetWithLabels(torch.utils.data.Dataset):
 
 class CustomDatasetNoMemoryAddBackground(torch.utils.data.Dataset):
     """
-    Requires the path to a dataset.
-    Essentially the same as above but it doesn't load all the data to memory.
-    Returns filename, image.
+    This is for generating embeddings. It just loads all the data.
+    In some cases we add a background.
     """
-
     def __init__(self, dataset_directory, dataset, transform, background_color):
         self.dataset_path = dataset_directory
         all_images = os.listdir(dataset_directory)
@@ -116,9 +115,20 @@ class CustomDatasetNoMemoryAddBackground(torch.utils.data.Dataset):
                         break
                 else:
                     print(f"Exception. No matching image found for: {image_id}")
-        elif dataset in ["tinyhero", "sprites"]:
+        elif dataset == "tinyhero":
             # No special instructions needed
             approved_images = all_images
+        elif dataset == "sprites":
+            # Find all unique sprite IDs
+            for image in all_images:
+                image_id = image.split("_")[0]
+                if image_id in done:
+                    continue
+                done.add(image_id)
+            # Sample N=10% IDs
+            sampled = random.sample(list(done), k=len(done)//10)
+            # Save only those selected IDs
+            approved_images = [x for x in all_images if x.split("_")[0] in sampled]
         self.all_images = approved_images
         self.transform = transform
         self.background = background_color  # Tuple (R,G,B)
@@ -160,6 +170,30 @@ class InpaintingDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.dataset_index)
+
+class EverythingDataset(torch.utils.data.Dataset):
+    """
+    For use by GANs.
+    Essentially loads images from all datasets since GANs
+    don't have a val or test dataset.
+    """
+    def __init__(self, train_datapath, val_datapath, test_datapath, transform, use_noise_images):
+        all_images = []
+        for datapath in [train_datapath, val_datapath, test_datapath]:
+            for file in os.listdir(datapath):
+                if use_noise_images or "noise" not in file:
+                    all_images.append(os.path.join(datapath, file))
+        self.all_images = all_images
+        self.transform = transform
+
+    def __getitem__(self, index):
+        filename = self.all_images[index]
+        image = Image.open(filename).convert("RGB")
+        image = self.transform(image)
+        return filename, image
+
+    def __len__(self):
+        return len(self.all_images)
 
 
 class FusionDataset(torch.utils.data.Dataset):

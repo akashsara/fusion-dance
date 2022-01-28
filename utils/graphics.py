@@ -47,6 +47,16 @@ def make_animation(make_grid, all_samples, height=4, width=4):
     return anim
 
 
+def make_gan_animation(samples):
+    fig = plt.figure(figsize=(8, 8), dpi=80)
+    plt.axis("off")
+    images = [[plt.imshow(np.transpose(i, (1, 2, 0)), animated=True)] for i in samples]
+    anim = animation.ArtistAnimation(
+        fig, images, interval=1500, repeat_delay=1000, blit=True
+    )
+    return anim
+
+
 def draw_loss(all_train_loss, all_val_loss, loss_output_path, mode):
     if mode == "vae":
         for i, label in enumerate(
@@ -87,6 +97,15 @@ def draw_loss(all_train_loss, all_val_loss, loss_output_path, mode):
             plot_and_save_loss(
                 train_loss, train_label, val_loss, val_label, output_path
             )
+    elif mode == "gan":
+        output_path = os.path.join(loss_output_path, f"loss.jpg")
+        plot_and_save_loss(
+            all_train_loss,
+            "Generator Loss",
+            all_val_loss,
+            "Discriminator Loss",
+            output_path,
+        )
     else:
         train_label = "Train Loss"
         val_label = "Validation Loss"
