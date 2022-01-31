@@ -6,9 +6,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class Generator(nn.Module):
+class DCGANGenerator(nn.Module):
     def __init__(self, latent_dim, num_filters, num_output_channels):
-        super(Generator, self).__init__()
+        super(DCGANGenerator, self).__init__()
         self.main = nn.Sequential(
             # input is latent_dim, going into a convolution
             nn.ConvTranspose2d(
@@ -71,9 +71,9 @@ class Generator(nn.Module):
         return self.main(input)
 
 
-class Discriminator(nn.Module):
+class DCGANDiscriminator(nn.Module):
     def __init__(self, num_filters, num_output_channels):
-        super(Discriminator, self).__init__()
+        super(DCGANDiscriminator, self).__init__()
         self.main = nn.Sequential(
             # input is (num_output_channels) x 64 x 64
             nn.Conv2d(

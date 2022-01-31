@@ -48,21 +48,18 @@ image_size = 64
 use_noise_images = True
 
 data_prefix = "data\\Pokemon\\final\\standard"
+output_prefix = f"data\\{experiment_name}"
+
 train_data_folder = os.path.join(data_prefix, "train")
 val_data_folder = os.path.join(data_prefix, "val")
 test_data_folder = os.path.join(data_prefix, "test")
 
-output_prefix = f"data\\{experiment_name}"
-
 output_dir = os.path.join(output_prefix, "generated")
 loss_output_path = output_prefix
-model_output_path = os.path.join(output_prefix, "model.pt")
 
 animation_output_path = os.path.join(output_prefix, "animation.mp4")
 animation_sample_image_name = os.path.join(output_prefix, "animation_base.jpg")
-
 test_sample_input_name = os.path.join(output_prefix, "test_sample_input.jpg")
-test_sample_output_name = os.path.join(output_prefix, "test_sample_output.jpg")
 
 ################################################################################
 ##################################### Setup ####################################
@@ -106,12 +103,12 @@ sample = torch.randn((64, latent_dim, 1, 1), device=device)
 ################################################################################
 
 # Create the model
-netG = gan.Generator(
+netG = gan.DCGANGenerator(
     latent_dim=latent_dim,
     num_filters=generator_num_filters,
     num_output_channels=num_output_channels,
 ).to(device)
-netD = gan.Discriminator(
+netD = gan.DCGANDiscriminator(
     num_filters=discriminator_num_filters, num_output_channels=num_output_channels
 ).to(device)
 
@@ -150,6 +147,8 @@ iters = 0
 print("Starting Training Loop...")
 # For each epoch
 for epoch in range(num_epochs):
+    netG.train()
+    netD.train()
     generator_loss = 0
     discriminator_loss = 0
     # For each batch in the dataloader
@@ -228,6 +227,30 @@ for epoch in range(num_epochs):
     print(
         f"[{epoch+1}/{num_epochs}]\tLoss_D: {errD.item():.4f}\tLoss_G: {errG.item():.4f}\tD(x): {D_x:.4f}\tD(G(z)): {D_G_z1:.4f} / {D_G_z2:.4f}"
     )
+    # Save Model
+    torch.save(
+        {
+            "epoch": epoch,
+            "generator_model_state_dict": netG.state_dict(),
+            "generator_optimizer_state_dict": optimizerG.state_dict(),
+            "generator_loss": all_generator_loss,
+            "discriminator_model_state_dict": netD.state_dict(),
+            "discriminator_optimizer_state_dict": optimizerD.state_dict(),
+            "discriminator_loss": all_discriminator_loss,
+        },
+        os.path.join(output_prefix, f"epoch_{epoch}_model.pt"),
+    )
+    netG.eval()
+    netD.eval()
+    # Generate a batch of fake images
+    with torch.no_grad():
+        # Generate batch of latent vectors
+        noise = torch.randn(batch_size, latent_dim, 1, 1, device=device)
+        # Generate fake image batch with G
+        generated = netG(noise).detach().cpu()
+    # Plot fake images
+    fig, axis = graphics.make_grid(("Test Sample", generated), 4, 4)
+    plt.savefig(os.path.join(output_prefix, f"epoch_{epoch}_test_sample_output.jpg"))
 
 ################################################################################
 ################################## Save & Test #################################
@@ -242,34 +265,9 @@ graphics.draw_loss(
 anim = graphics.make_gan_animation(training_samples)
 anim.save(animation_output_path)
 
-# Save Model
-torch.save(
-    {
-        "epoch": epoch,
-        "generator_model_state_dict": netG.state_dict(),
-        "generator_optimizer_state_dict": optimizerG.state_dict(),
-        "generator_loss": all_generator_loss,
-        "discriminator_model_state_dict": netD.state_dict(),
-        "discriminator_optimizer_state_dict": optimizerD.state_dict(),
-        "discriminator_loss": all_discriminator_loss,
-    },
-    model_output_path,
-)
-
 # Pick a couple of sample images for an Input v Output comparison
 sample = data.get_samples_from_data(dataset, 16)
 
 # Plot A Set of Test Images
 fig, axis = graphics.make_grid(("Test Sample", sample), 4, 4)
 plt.savefig(test_sample_input_name)
-
-# Generate fake images
-with torch.no_grad():
-    # Generate batch of latent vectors
-    noise = torch.randn(batch_size, latent_dim, 1, 1, device=device)
-    # Generate fake image batch with G
-    generated = netG(noise).detach().cpu()
-
-# Plot fake images
-fig, axis = graphics.make_grid(("Test Sample", generated), 4, 4)
-plt.savefig(test_sample_output_name)
