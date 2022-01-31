@@ -52,7 +52,7 @@ def make_gan_animation(samples):
     plt.axis("off")
     images = [[plt.imshow(np.transpose(i, (1, 2, 0)), animated=True)] for i in samples]
     anim = animation.ArtistAnimation(
-        fig, images, interval=1500, repeat_delay=1000, blit=True
+        fig, images, interval=1000, repeat_delay=1000, blit=True
     )
     return anim
 

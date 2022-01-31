@@ -55,11 +55,12 @@ val_data_folder = os.path.join(data_prefix, "val")
 test_data_folder = os.path.join(data_prefix, "test")
 
 output_dir = os.path.join(output_prefix, "generated")
+model_save_dir = os.path.join(output_prefix, "models")
 loss_output_path = output_prefix
 
 animation_output_path = os.path.join(output_prefix, "animation.mp4")
 animation_sample_image_name = os.path.join(output_prefix, "animation_base.jpg")
-test_sample_input_name = os.path.join(output_prefix, "test_sample_input.jpg")
+test_sample_input_name = os.path.join(output_dir, "test_sample_input.jpg")
 
 ################################################################################
 ##################################### Setup ####################################
@@ -73,6 +74,8 @@ print(gpu, device)
 # Create Output Paths
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
+if not os.path.exists(model_save_dir):
+    os.makedirs(model_save_dir)
 
 ################################################################################
 ################################## Data Setup ##################################
@@ -238,7 +241,7 @@ for epoch in range(num_epochs):
             "discriminator_optimizer_state_dict": optimizerD.state_dict(),
             "discriminator_loss": all_discriminator_loss,
         },
-        os.path.join(output_prefix, f"epoch_{epoch}_model.pt"),
+        os.path.join(model_save_dir, f"epoch_{epoch}_model.pt"),
     )
     netG.eval()
     netD.eval()
@@ -250,7 +253,7 @@ for epoch in range(num_epochs):
         generated = netG(noise).detach().cpu()
     # Plot fake images
     fig, axis = graphics.make_grid(("Test Sample", generated), 4, 4)
-    plt.savefig(os.path.join(output_prefix, f"epoch_{epoch}_test_sample_output.jpg"))
+    plt.savefig(os.path.join(output_dir, f"epoch_{epoch}_test_sample_output.jpg"))
 
 ################################################################################
 ################################## Save & Test #################################
