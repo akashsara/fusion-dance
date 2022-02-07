@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torchvision import transforms
 import numpy as np
+import pandas as pd
 import joblib
 import random
 
@@ -31,6 +32,35 @@ class CustomDataset(torch.utils.data.Dataset):
         return len(self.dataset)
 
 
+class CustomDatasetWithLabels(torch.utils.data.Dataset):
+    """
+    Requires the dataset as a dict of form filename:image.
+    Returns filename, image
+    """
+
+    def __init__(self, dataset, label_file, label_column, transform=None):
+        self.dataset = list(dataset.values())
+        self.keys = list(dataset.keys())
+        labels = joblib.load(label_file)
+        labels = pd.DataFrame(labels).T[label_column].fillna("None")
+        self.classes = labels.unique()
+        self.labels = labels.to_dict()
+        self.transform = transform
+
+    def __getitem__(self, index):
+        data = self.dataset[index]
+        key = self.keys[index]
+        label = self.labels[key]
+        if self.transform is not None:
+            data = self.transform(data)
+        return key, data, label
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def get_classes(self):
+        return self.classes
+
 class CustomDatasetNoMemory(torch.utils.data.Dataset):
     """
     Requires the path to a dataset.
@@ -55,6 +85,41 @@ class CustomDatasetNoMemory(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.all_images)
+
+
+class CustomDatasetNoMemoryWithLabels(torch.utils.data.Dataset):
+    """
+    Requires the path to a dataset.
+    Essentially the same as above but it doesn't load all the data to memory.
+    Returns filename, image.
+    """
+
+    def __init__(self, dataset_directory, label_file, label_column, use_noise_images, transform=None):
+        self.dataset_path = dataset_directory
+        all_images = os.listdir(dataset_directory)
+        if not use_noise_images:
+            all_images = [x for x in all_images if "noise" not in x]
+        self.all_images = all_images
+        labels = joblib.load(label_file)
+        labels = pd.DataFrame(labels).T[label_column].fillna("None")
+        self.classes = labels.unique()
+        self.labels = labels.to_dict()
+        self.transform = transform
+
+    def __getitem__(self, index):
+        filename = self.all_images[index]
+        image_path = os.path.join(self.dataset_path, filename)
+        image = Image.open(image_path).convert("RGB")
+        if self.transform is not None:
+            image = self.transform(image)
+        label = self.labels[filename]
+        return filename, image, label
+
+    def __len__(self):
+        return len(self.all_images)
+
+    def get_classes(self):
+        return self.classes
 
 
 class CustomDatasetWithLabels(torch.utils.data.Dataset):
@@ -90,6 +155,7 @@ class CustomDatasetNoMemoryAddBackground(torch.utils.data.Dataset):
     This is for generating embeddings. It just loads all the data.
     In some cases we add a background.
     """
+
     def __init__(self, dataset_directory, dataset, transform, background_color):
         self.dataset_path = dataset_directory
         all_images = os.listdir(dataset_directory)
@@ -126,7 +192,7 @@ class CustomDatasetNoMemoryAddBackground(torch.utils.data.Dataset):
                     continue
                 done.add(image_id)
             # Sample N=10% IDs
-            sampled = random.sample(list(done), k=len(done)//10)
+            sampled = random.sample(list(done), k=len(done) // 10)
             # Save only those selected IDs
             approved_images = [x for x in all_images if x.split("_")[0] in sampled]
         self.all_images = approved_images
@@ -171,13 +237,17 @@ class InpaintingDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.dataset_index)
 
+
 class EverythingDataset(torch.utils.data.Dataset):
     """
     For use by GANs.
     Essentially loads images from all datasets since GANs
     don't have a val or test dataset.
     """
-    def __init__(self, train_datapath, val_datapath, test_datapath, transform, use_noise_images):
+
+    def __init__(
+        self, train_datapath, val_datapath, test_datapath, transform, use_noise_images
+    ):
         all_images = []
         for datapath in [train_datapath, val_datapath, test_datapath]:
             for file in os.listdir(datapath):
