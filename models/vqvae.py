@@ -255,3 +255,150 @@ class VQVAE(nn.Module):
     def quantize_and_decode(self, x, target_shape, device):
         quantized = self.vq_vae.quantize_encoding_indices(x, target_shape, device)
         return self.decoder(quantized)
+
+
+class FixedVQVAE(nn.Module):
+    def __init__(
+        self,
+        image_channels=3,
+        num_layers=4,
+        kernel_size=2,
+        stride=2,
+        padding=0,
+        input_image_dimensions=96,
+        small_conv=False,
+        embedding_dim=64,
+        max_filters=512,
+        use_max_filters=False,
+        num_embeddings=512,
+        commitment_cost=0.25,
+        decay=0.99,
+    ):
+        super(FixedVQVAE, self).__init__()
+        if small_conv:
+            num_layers += 1
+        if not use_max_filters:
+            max_filters = embedding_dim
+        channel_sizes = self.calculate_channel_sizes(
+            image_channels, max_filters, num_layers
+        )
+
+        # Encoder
+        encoder_layers = nn.ModuleList()
+        # Encoder Convolutions
+        for i, (in_channels, out_channels) in enumerate(channel_sizes):
+            if small_conv and i == 0:
+                # 1x1 Convolution
+                encoder_layers.append(
+                    nn.Conv2d(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                    )
+                )
+            else:
+                # Convolutional Layer
+                encoder_layers.append(
+                    nn.Conv2d(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=kernel_size,
+                        stride=stride,
+                        padding=padding,
+                        bias=False,
+                    )
+                )
+            # Batch Norm
+            encoder_layers.append(nn.BatchNorm2d(out_channels))
+            # ReLU
+            encoder_layers.append(nn.ReLU())
+
+        # Final Conv Layer to ensure we have embedding_dim channels
+        if use_max_filters:
+            encoder_layers.append(
+                nn.Conv2d(
+                    in_channels=out_channels,
+                    out_channels=embedding_dim,
+                    kernel_size=1,
+                    stride=1,
+                    padding=0,
+                )
+            )
+        # Make Encoder
+        self.encoder = nn.Sequential(*encoder_layers)
+
+        # Vector Quantizer
+        self.vq_vae = VectorQuantizerEMA(
+            num_embeddings, embedding_dim, commitment_cost, decay
+        )
+
+        # Decoder
+        decoder_layers = nn.ModuleList()
+        # Initial Conv Layer to change the channels back to the required number
+        if use_max_filters:
+            decoder_layers.append(
+                nn.ConvTranspose2d(
+                    in_channels=embedding_dim,
+                    out_channels=out_channels,
+                    kernel_size=1,
+                    stride=1,
+                    padding=0,
+                )
+            )
+        # Decoder Convolutions
+        for i, (out_channels, in_channels) in enumerate(channel_sizes[::-1]):
+            if small_conv and i == num_layers - 1:
+                # 1x1 Transposed Convolution
+                decoder_layers.append(
+                    nn.ConvTranspose2d(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                    )
+                )
+            else:
+                # Add Transposed Convolutional Layer
+                decoder_layers.append(
+                    nn.ConvTranspose2d(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=kernel_size,
+                        stride=stride,
+                        padding=padding,
+                        bias=False,
+                    )
+                )
+            # Batch Norm
+            decoder_layers.append(nn.BatchNorm2d(out_channels))
+            # ReLU if not final layer
+            if i != num_layers - 1:
+                decoder_layers.append(nn.ReLU())
+            # Sigmoid if final layer
+            else:
+                decoder_layers.append(nn.Sigmoid())
+        self.decoder = nn.Sequential(*decoder_layers)
+
+    def calculate_channel_sizes(self, image_channels, max_filters, num_layers):
+        channel_sizes = [(image_channels, max_filters // np.power(2, num_layers - 1))]
+        for i in range(1, num_layers):
+            prev = channel_sizes[-1][-1]
+            new = prev * 2
+            channel_sizes.append((prev, new))
+        return channel_sizes
+
+    def forward(self, x):
+        # Encoder
+        encoded = self.encoder(x)
+        # VQ-VAE
+        loss, quantized, perplexity, encodings = self.vq_vae(encoded)
+        # Decoder
+        reconstructed = self.decoder(quantized)
+        return loss, reconstructed, perplexity, encodings
+
+    def quantize_and_decode(self, x, target_shape, device):
+        quantized = self.vq_vae.quantize_encoding_indices(x, target_shape, device)
+        return self.decoder(quantized)
