@@ -298,8 +298,8 @@ with torch.no_grad():
         batch_loss = criterion(y_hat, labels)
 
         # Store labels and predictions for metric computation
-        all_y.extend(labels)
-        all_y_hat.extend(y_hat.argmax(dim=1))
+        all_y.extend(labels.detach().cpu())
+        all_y_hat.extend(y_hat.argmax(dim=1).detach().cpu())
 
         # Add the batch's loss to the total loss for the epoch
         test_loss += batch_loss.item()
