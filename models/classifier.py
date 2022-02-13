@@ -68,35 +68,13 @@ class ANNMultiClassClassifier(nn.Module):
                         out_features=start_filters,
                     )
                 )
+                layers.append(nn.Dropout(p=0.5, inplace=True))
                 layers.append(nn.ReLU(True))
             input_dimension = start_filters
-            start_filters = start_filters * 2
+            start_filters = start_filters // 2
 
         self.model = nn.Sequential(*layers)
 
     def forward(self, x):
         return self.model(x)
 
-
-class ANNMultiClassClassifierV2(nn.Module):
-    def __init__(self, num_layers, input_dimension, hidden_size, num_output_classes):
-        super(ANNMultiClassClassifier, self).__init__()
-        layers = nn.ModuleList()
-        layers.append(
-            nn.Linear(
-                in_features=input_dimension,
-                out_features=hidden_size,
-            )
-        )
-        layers.append(nn.Dropout(p=0.5, inplace=True))
-        layers.append(nn.ReLU(True))
-        layers.append(
-            nn.Linear(
-                in_features=hidden_size,
-                out_features=num_output_classes,
-            )
-        )
-        self.model = nn.Sequential(*layers)
-
-    def forward(self, x):
-        return self.model(x)
