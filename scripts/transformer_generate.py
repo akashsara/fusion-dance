@@ -1,3 +1,6 @@
+"""
+Generate images using a Transformer + VQVAE.
+"""
 import os
 
 import matplotlib.pyplot as plt

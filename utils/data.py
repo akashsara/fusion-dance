@@ -192,6 +192,7 @@ class CustomDatasetNoMemoryAddBackground(torch.utils.data.Dataset):
                     continue
                 done.add(image_id)
             # Sample N=10% IDs
+            random.seed(42)
             sampled = random.sample(list(done), k=len(done) // 10)
             # Save only those selected IDs
             approved_images = [x for x in all_images if x.split("_")[0] in sampled]

@@ -5,26 +5,23 @@ import os
 import sys
 
 import numpy as np
-import pandas as pd
 import torch
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 sys.path.append("./")
-import utils.data as data
-from models import vae
+from models import gan
 
 seed = 42
 np.random.seed(seed)
 _ = torch.manual_seed(seed)
 
-# VAE Config
-experiment_name = "base_convolutional_vae_v1"
-num_layers = 4
-max_filters = 512
-image_size = 64
-latent_dim = 256
-small_conv = False  # To use the 1x1 convolution layer
+# GAN Config
+experiment_name = "sprites_gan_v1"
+epoch_to_load = 24
+latent_dim = 100
+generator_num_filters = 64
+num_output_channels = 3
 
 # Generation Config
 generation_batches = 5
@@ -34,8 +31,8 @@ generation_batch_size = 32
 batch_size = 32
 num_dataloader_workers = 0
 model_prefix = f"outputs\\{experiment_name}"
-model_path = os.path.join(model_prefix, "model.pt")
-generated_dir = os.path.join("outputs", experiment_name, "latent_samples")
+model_path = os.path.join(model_prefix, "models", f"epoch_{epoch_to_load}_model.pt")
+generated_dir = os.path.join("outputs", experiment_name, "generated_samples")
 
 if not os.path.exists(generated_dir):
     os.makedirs(generated_dir)
@@ -45,18 +42,14 @@ gpu = torch.cuda.is_available()
 device = torch.device("cuda" if gpu else "cpu")
 print(gpu, device)
 
-# Preprocess & Create Data Loaders
-transform = data.image2tensor_resize(image_size)
-
 # Create Model
-model = vae.ConvolutionalVAE(
-    max_filters=max_filters,
-    num_layers=num_layers,
-    input_image_dimensions=image_size,
+model = gan.DCGANGenerator(
     latent_dim=latent_dim,
-    small_conv=small_conv,
+    num_filters=generator_num_filters,
+    num_output_channels=num_output_channels,
 )
-model.load_state_dict(torch.load(model_path, map_location=device))
+checkpoint = torch.load(model_path, map_location=device)
+model.load_state_dict(checkpoint["generator_model_state_dict"])
 model.eval()
 model.to(device)
 
@@ -65,11 +58,10 @@ all_filenames = []
 all_color_ids = []
 with torch.no_grad():
     for iteration in tqdm(range(generation_batches)):
-        embeddings = embeddings = torch.rand(
-            (generation_batch_size, latent_dim), device=device
-        )
-        generated = model.decoder(embeddings)
-
+        # Generate batch of latent vectors
+        noise = torch.randn(batch_size, latent_dim, 1, 1, device=device)
+        # Generate fake image batch with G
+        generated = model(noise).clamp(min=0, max=1)
         generated = generated.permute(0, 2, 3, 1).detach().cpu().numpy()
         for j, image in enumerate(generated):
             filename = f"{(generation_batch_size * iteration) + j}.png"

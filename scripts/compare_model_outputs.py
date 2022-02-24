@@ -82,16 +82,14 @@ base_dir = "data\\Pokemon\\final\\standard\\test"
 output_dir = "data\\"
 model_prefix = f"outputs\\"
 num_images = 16
-model_list = [
-]
+model_list = []
 is_fusions = "fusions" in base_dir
 output_prefix = "fusions_" if is_fusions else ""
 use_base_model = False
-use_base_dir = False
+use_base_dir = True
 image_size = 64
 
 # VQ-VAE Config
-image_size = 64
 model_prefix = f"outputs\\"
 vq_vae_model_name = f"vq_vae_v5.16"
 vq_vae_num_layers = 2
