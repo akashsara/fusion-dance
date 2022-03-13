@@ -129,7 +129,7 @@ sample = data.get_samples_from_data(val_data, 16)
 ################################################################################
 
 # Create Model
-model = vqvae.FixedVQVAE(
+model = vqvae.VQVAE(
     num_layers=num_layers,
     input_image_dimensions=image_size,
     small_conv=small_conv,
