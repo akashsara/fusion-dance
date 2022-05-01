@@ -10,6 +10,48 @@ from PIL import Image
 import os
 
 
+class ConditioningLabelsHandler:
+    """
+    A class to handle conditioning information for certain models.
+    If a single column is given, each call returns a one hot vector.
+    For multiple columns, we treat it as a multiclass system.
+    So each call would return an n-hot vector.
+    If there were 2 columns, we would have the same one hot vector as above.
+    BUT, we would have two instances of "1" in this vector.
+    Note that the second may be optional as there may be cases where
+    certain data can have 1 or 2 labels.
+    In either case, the first column is used for setting up our label encoder.
+    This is because the first column is mandatory for all data.
+    """
+
+    def __init__(self, label_file, label_columns):
+        self.labels = joblib.load(label_file)
+        self.label_columns = label_columns
+        column_unique_values = set()
+        for value in self.labels.values():
+            column_unique_values.add(value[label_columns[0]])
+        self.encoding_dict = {y: x for x, y in enumerate(column_unique_values)}
+        self.conditioning_size = len(self.encoding_dict)
+
+    def __call__(self, keys):
+        vectors = []
+        for key in keys:
+            vector = [0] * self.conditioning_size
+            for column in self.label_columns:
+                label_column = self.labels.get(key, "None")
+                if label_column[column] != "None":
+                    vector[self.encoding_dict[label_column[column]]] = 1
+            vectors.append(vector)
+        return vectors
+
+    def get_size(self):
+        """Returns the size of the conditioning vector"""
+        return self.conditioning_size
+
+    def save(self, output_file):
+        joblib.dump(self.encoding_dict, output_file)
+
+
 class CustomDataset(torch.utils.data.Dataset):
     """
     Requires the dataset as a dict of form filename:image.
@@ -61,6 +103,7 @@ class CustomDatasetWithLabels(torch.utils.data.Dataset):
     def get_classes(self):
         return self.classes
 
+
 class CustomDatasetNoMemory(torch.utils.data.Dataset):
     """
     Requires the path to a dataset.
@@ -94,7 +137,14 @@ class CustomDatasetNoMemoryWithLabels(torch.utils.data.Dataset):
     Returns filename, image.
     """
 
-    def __init__(self, dataset_directory, label_file, label_column, use_noise_images, transform=None):
+    def __init__(
+        self,
+        dataset_directory,
+        label_file,
+        label_column,
+        use_noise_images,
+        transform=None,
+    ):
         self.dataset_path = dataset_directory
         all_images = os.listdir(dataset_directory)
         if not use_noise_images:
@@ -122,7 +172,7 @@ class CustomDatasetNoMemoryWithLabels(torch.utils.data.Dataset):
         return self.classes
 
 
-class CustomDatasetWithLabels(torch.utils.data.Dataset):
+class CustomImage2ImageDatasetWithLabels(torch.utils.data.Dataset):
     """
     Unlike the previous CustomDatasets,
     this requires both a feature dir and a labels dir.
