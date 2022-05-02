@@ -31,6 +31,7 @@ class ConditioningLabelsHandler:
         for value in self.labels.values():
             column_unique_values.add(value[label_columns[0]])
         self.encoding_dict = {y: x for x, y in enumerate(column_unique_values)}
+        self.reverse_encoding_dict = {x: y for x, y in enumerate(column_unique_values)}
         self.conditioning_size = len(self.encoding_dict)
 
     def __call__(self, keys):
@@ -43,6 +44,9 @@ class ConditioningLabelsHandler:
                     vector[self.encoding_dict[label_column[column]]] = 1
             vectors.append(vector)
         return vectors
+
+    def reverse_transform(self, label):
+        return self.reverse_encoding_dict[label]
 
     def get_size(self):
         """Returns the size of the conditioning vector"""

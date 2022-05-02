@@ -10,7 +10,6 @@ import utils.data as data
 import utils.graphics as graphics
 import utils.loss as loss
 from models import vqvae, gated_pixelcnn
-from sklearn.preprocessing import LabelEncoder
 
 seed = 42
 np.random.seed(seed)
@@ -20,7 +19,7 @@ _ = torch.manual_seed(seed)
 #################################### Config ####################################
 ################################################################################
 learning_rate = 1e-4
-epochs = 1
+epochs = 10
 batch_size = 32
 num_dataloader_workers = 0
 image_size = 64
@@ -46,10 +45,10 @@ input_channels = 1
 hidden_channels = 256
 num_classes = vq_vae_num_embeddings
 kernel_size = 3
-sample_batch_size = batch_size
-num_sample_batches = 5
 use_bits_per_dimension_loss = False
 use_dilation = True
+sample_batch_size = batch_size
+num_sample_batches = 5
 
 # Data Config
 conditioning_info_file = "data\\Pokemon\\metadata.joblib"
@@ -64,7 +63,7 @@ val_data_folder = os.path.join(data_prefix, "val")
 test_data_folder = os.path.join(data_prefix, "test")
 
 output_dir = os.path.join(output_prefix, "generated")
-loss_output_path = os.path.join(output_prefix, "loss.jpg")
+loss_output_path = output_prefix
 model_output_path = os.path.join(output_prefix, "model.pt")
 ################################################################################
 ##################################### Setup ####################################
@@ -194,7 +193,7 @@ for epoch in range(epochs):
         # Move batch to device
         key, batch = batch  # (names), (images)
         batch = batch.to(device)
-        conditioning = torch.as_tensor(label_handler(key)).to(device).float()
+        conditioning = torch.as_tensor(label_handler(key)).float().to(device)
         current_batch_size = batch.shape[0]
 
         with torch.no_grad():
@@ -220,9 +219,9 @@ for epoch in range(epochs):
     with torch.no_grad():
         for iteration, batch in enumerate(tqdm(val_dataloader)):
             # Move batch to device
-            _, batch = batch  # (names), (images)
+            key, batch = batch  # (names), (images)
             batch = batch.to(device)
-            conditioning = torch.as_tensor(label_handler(key)).to(device)
+            conditioning = torch.as_tensor(label_handler(key)).float().to(device)
             current_batch_size = batch.shape[0]
 
             with torch.no_grad():
@@ -265,7 +264,7 @@ torch.save(
         "optimizer_state_dict": optimizer.state_dict(),
         "train_loss": all_train_loss,
         "val_loss": all_val_loss,
-        "encoding_dict": label_handler.encoding_dict(),
+        "encoding_dict": label_handler.encoding_dict,
     },
     model_output_path,
 )
@@ -278,9 +277,9 @@ test_loss = 0
 with torch.no_grad():
     for iteration, batch in enumerate(tqdm(test_dataloader)):
         # Move batch to device
-        _, batch = batch  # (names), (images)
+        key, batch = batch  # (names), (images)
         batch = batch.to(device)
-        conditioning = torch.as_tensor(label_handler(key)).to(device)
+        conditioning = torch.as_tensor(label_handler(key)).float().to(device)
         current_batch_size = batch.shape[0]
 
         with torch.no_grad():
@@ -310,15 +309,18 @@ for i in range(num_sample_batches):
         if np.random.choice([True, True, False, False, False]):
             rand = np.random.randint(0, conditioning_classes)
             row[rand] = 1
-    conditioning_info = conditioning_info.to(device)
-    # Sample from model
-    sample = model.sample(image_shape, device, conditioning_info)
-    # Feed into VQ-VAE
-    sample = sample.flatten(start_dim=1).view(-1, 1)
-    sample = vq_vae.quantize_and_decode(sample, target_shape, device)
+    conditioning_info = conditioning_info.float().to(device)
+    with torch.no_grad():
+        # Sample from model
+        sample = model.sample(image_shape, device, conditioning_info)
+        # Feed into VQ-VAE
+        sample = sample.flatten(start_dim=1).view(-1, 1)
+        sample = vq_vae.quantize_and_decode(sample, target_shape, device)
     # Convert to image
     sample = sample.permute(0, 2, 3, 1).detach().cpu().numpy()
     # Save
-    for filename, image in enumerate(sample):
-        filename = f"{(i*sample_batch_size)+filename}.png"
+    for filename, (image, condition) in enumerate(zip(sample, conditioning_info)):
+        conditions = (condition == condition.max()).nonzero().flatten()
+        conditions = "-".join([label_handler.reverse_transform(int(condition)) for condition in conditions])
+        filename = f"{(i*sample_batch_size)+filename}_{conditions}.png"
         plt.imsave(os.path.join(output_dir, filename), image)
