@@ -56,7 +56,7 @@ def get_images(dir, images_to_load, resize_size=-1, fusion_dir=None):
     return images
 
 
-def make_image_grid(images, title):
+def make_image_grid(images, title, subplot_captions=None):
     """
     Creates a square grid of all the images.
     """
@@ -68,6 +68,8 @@ def make_image_grid(images, title):
         if num == height * width:
             break
         axis[i, j].imshow(image)
+        if subplot_captions:
+            axis[i, j].title.set_text(subplot_captions[(i * height) + j][:-4])
         if j == width - 1:
             j = 0
             i += 1
@@ -86,7 +88,8 @@ model_list = []
 is_fusions = "fusions" in base_dir
 output_prefix = "fusions_" if is_fusions else ""
 use_base_model = False
-use_base_dir = True
+use_base_dir = False
+use_subplot_captions = False
 image_size = 64
 
 # VQ-VAE Config
@@ -104,7 +107,10 @@ if use_base_dir:
     images_to_load = pick_images(base_dir, num_images, fusions=is_fusions)
     caption = output_prefix + "base"
     images = get_images(base_dir, images_to_load, resize_size=image_size)
-    fig, axis = make_image_grid(images, caption)
+    if use_subplot_captions:
+        fig, axis = make_image_grid(images, caption, images_to_load)
+    else:
+        fig, axis = make_image_grid(images, caption)
     plt.savefig(os.path.join(output_dir, f"{caption}.png"))
     print(caption)
 
@@ -148,6 +154,9 @@ for model in model_list:
     if not use_base_dir:
         images_to_load = pick_images(model_dir, num_images, fusions=is_fusions)
     images = get_images(model_dir, images_to_load, resize_size=image_size)
-    fig, axis = make_image_grid(images, model)
+    if use_subplot_captions:
+        fig, axis = make_image_grid(images, model, images_to_load)
+    else:
+        fig, axis = make_image_grid(images, model)
     plt.savefig(os.path.join(output_dir, f"{output_prefix}{model}.png"))
     print(model)
