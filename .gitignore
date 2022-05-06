@@ -4,6 +4,8 @@ __pycache__/
 env/
 data/
 !data/Pokemon/original_data.zip
+!data/Pokemon/metadata.joblib
+!scripts/data/
 outputs/
 fusions/
 *.npy
