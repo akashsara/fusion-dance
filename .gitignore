@@ -2,9 +2,14 @@
 .vscode/
 __pycache__/
 env/
-data/
+
+# Messy thing to keep our data in the repo
+data/*
+!data/Pokemon
+data/Pokemon/*
 !data/Pokemon/original_data.zip
 !data/Pokemon/metadata.joblib
+
 !scripts/data/
 outputs/
 fusions/

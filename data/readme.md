@@ -25,5 +25,10 @@
 2. Run `rename_tiny_hero_files.py` on the dataset.
 3. Run the preprocessing script `../preprocess.py` on the dataset.
 
-# Pokemon Data CSV (for Embedding Analysis)
-1. https://www.kaggle.com/mariotormo/complete-pokemon-dataset-updated-090420
+# Pokemon Data CSV (for embedding analysis/conditioning information)
+https://www.kaggle.com/mariotormo/complete-pokemon-dataset-updated-090420
+File: `pokedex_(Update_04.21).csv`
+
+# Pokemon Data CSV (for conditioning information)
+https://github.com/PokeAPI/pokeapi
+Files: `pokemon_colors.csv`, `pokemon_shapes.csv`, `pokemon_species.csv`
