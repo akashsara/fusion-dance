@@ -47,12 +47,13 @@ num_classes = vq_vae_num_embeddings
 kernel_size = 3
 use_bits_per_dimension_loss = False
 use_dilation = True
+conditioning_info_columns = ["type1", "type2", "shape"]
 sample_batch_size = batch_size
 num_sample_batches = 5
+sample_conditioning_dict = {"type1": 1, "type2": 2, "shape": 1}
 
 # Data Config
 conditioning_info_file = "data\\Pokemon\\metadata.joblib"
-conditioning_info_columns = ["type1", "type2"]
 data_prefix = "data\\Pokemon\\final\\standard"
 output_prefix = f"data\\{experiment_name}"
 vq_vae_model_prefix = f"outputs\\{vq_vae_experiment_name}"
@@ -301,15 +302,8 @@ target_shape = (sample_batch_size, input_dim, input_dim, vq_vae_embedding_dim)
 image_shape = (sample_batch_size, input_channels, input_dim, input_dim)
 for i in range(num_sample_batches):
     # Pick some random conditioning info
-    conditioning_info = torch.nn.functional.one_hot(
-        torch.randint(0, conditioning_classes, size=(sample_batch_size,)),
-        conditioning_classes,
-    )
-    for row in conditioning_info:
-        if np.random.choice([True, True, False, False, False]):
-            rand = np.random.randint(0, conditioning_classes)
-            row[rand] = 1
-    conditioning_info = conditioning_info.float().to(device)
+    conditioning_info = label_handler.sample_conditions(sample_batch_size, sample_conditioning_dict)
+    conditioning_info = torch.as_tensor(conditioning_info).float().to(device)
     with torch.no_grad():
         # Sample from model
         sample = model.sample(image_shape, device, conditioning_info)

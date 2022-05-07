@@ -27,9 +27,19 @@ class ConditioningLabelsHandler:
     def __init__(self, label_file, label_columns):
         self.labels = joblib.load(label_file)
         self.label_columns = label_columns
-        column_unique_values = set()
-        for value in self.labels.values():
-            column_unique_values.add(value[label_columns[0]])
+        column_unique_values = []
+        column_unique_values_dict = {}
+        df = pd.DataFrame(self.labels).T
+        for label_column in label_columns:
+            temp = df[~df[label_column].isnull()][label_column].unique()
+            # Not using a set here so members of the same class (type/egg/etc.)
+            # are next to each other in the vector 
+            # This is mostly just so that it is easier to understand the vector
+            for item in temp:
+                if item not in column_unique_values:
+                    column_unique_values.append(item)
+            column_unique_values_dict[label_column] = temp
+        self.column_unique_values_dict = column_unique_values_dict
         self.encoding_dict = {y: x for x, y in enumerate(column_unique_values)}
         self.reverse_encoding_dict = {x: y for x, y in enumerate(column_unique_values)}
         self.conditioning_size = len(self.encoding_dict)
@@ -39,14 +49,51 @@ class ConditioningLabelsHandler:
         for key in keys:
             vector = [0] * self.conditioning_size
             for column in self.label_columns:
-                label_column = self.labels.get(key, "None")
-                if label_column[column] != "None":
+                label_column = self.labels.get(key)
+                # Weird python thing to check for nan
+                if str(label_column[column]) != "nan":
                     vector[self.encoding_dict[label_column[column]]] = 1
             vectors.append(vector)
         return vectors
 
     def reverse_transform(self, label):
-        return self.reverse_encoding_dict[label]
+        label = np.array(label)
+        # Single number
+        if label.ndim == 0:
+            return self.reverse_encoding_dict[int(label)]
+        # Single array of numbers
+        elif label.ndim == 1:
+            return [self.reverse_encoding_dict[int(x)] for x in label]
+        # (batch_size, N)
+        elif label.ndim == 2:
+            return [[self.reverse_encoding_dict[int(x)] for x in row] for row in label]
+
+    def vector_to_text(self, vector):
+        vector = np.array(vector)
+        if vector.ndim == 1:
+            vector = np.flatnonzero(vector)
+            return self.reverse_transform(vector)
+        elif vector.ndim == 2:
+            return [self.reverse_transform(np.flatnonzero(row)) for row in vector]
+
+    def sample_conditions(self, num_samples, columns):
+        vectors = []
+        for _ in range(num_samples):
+            vector = [0] * self.conditioning_size
+            for column, column_type in columns.items():
+                # Ignore column
+                if column_type == 0:
+                    pass
+                # Always use column
+                elif column_type == 1:
+                    choice = random.choice(self.column_unique_values_dict[column])
+                    vector[self.encoding_dict[choice]] = 1
+                # Leave it to luck (for secondary things like type2)
+                elif column_type == 2 and random.choice([True, True, True, False, False]):
+                    choice = random.choice(self.column_unique_values_dict[column])
+                    vector[self.encoding_dict[choice]] = 1
+            vectors.append(vector)
+        return vectors
 
     def get_size(self):
         """Returns the size of the conditioning vector"""
