@@ -163,7 +163,7 @@ for folder in ["train", "val", "test"]:
             final[filename]["type1"] = type1[pokemon_id_int]
             final[filename]["type2"] = type2[pokemon_id_int]
         if shape_bypass:
-            final[filename]["color"] = bypass_shape
+            final[filename]["shape"] = bypass_shape
         else:
-            final[filename]["color"] = connector[pokemon_id]['shape']
+            final[filename]["shape"] = connector[pokemon_id]['shape']
 joblib.dump(final, os.path.join(output_dir, f"metadata.joblib"))
