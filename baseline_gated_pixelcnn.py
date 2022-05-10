@@ -29,33 +29,20 @@ load_data_to_memory = False
 
 experiment_name = f"gated_pixelcnn_v1"
 
-# VQ-VAE Config
-mode = "discrete"
-vq_vae_experiment_name = f"vq_vae_v5.17"
-vq_vae_num_layers = 2
-vq_vae_max_filters = 512
-vq_vae_use_max_filters = True
-vq_vae_num_embeddings = 1024
-vq_vae_embedding_dim = 64
-vq_vae_commitment_cost = 0.25
-vq_vae_small_conv = True  # To use the 1x1 convolution layer
-
 # Pixel CNN Config
-input_dim = image_size // (2 ** vq_vae_num_layers)
-input_channels = 1
+input_dim = image_size
+input_channels = 3
 hidden_channels = 128
-num_classes = vq_vae_num_embeddings
+num_classes = 256 # RGB = 0-255
 kernel_size = 3
-sample_batch_size = batch_size
-num_sample_batches = 5
+sample_batch_size = 2
+num_sample_batches = 1
 use_bits_per_dimension_loss = False
 use_dilation = True
 
 # Data Config
 data_prefix = "data\\pokemon\\final\\standard"
 output_prefix = f"data\\{experiment_name}"
-vq_vae_model_prefix = f"outputs\\{vq_vae_experiment_name}"
-vq_vae_model_path = os.path.join(vq_vae_model_prefix, "model.pt")
 
 train_data_folder = os.path.join(data_prefix, "train")
 val_data_folder = os.path.join(data_prefix, "val")
@@ -127,21 +114,6 @@ sample = data.get_samples_from_data(val_data, 16)
 ##################################### Model ####################################
 ################################################################################
 
-# Create & Load VQVAE Model
-vq_vae = vqvae.VQVAE(
-    num_layers=vq_vae_num_layers,
-    input_image_dimensions=image_size,
-    small_conv=vq_vae_small_conv,
-    embedding_dim=vq_vae_embedding_dim,
-    num_embeddings=vq_vae_num_embeddings,
-    commitment_cost=vq_vae_commitment_cost,
-    use_max_filters=vq_vae_use_max_filters,
-    max_filters=vq_vae_max_filters,
-)
-vq_vae.load_state_dict(torch.load(vq_vae_model_path, map_location=device))
-vq_vae.eval()
-vq_vae.to(device)
-
 # Create Model
 model = gated_pixelcnn.PixelCNN(
     c_in=input_channels,
@@ -182,14 +154,11 @@ for epoch in range(epochs):
         batch = batch.to(device)
         current_batch_size = batch.shape[0]
 
-        with torch.no_grad():
-            # Get Encodings from vq_vae
-            _, _, _, encodings = vq_vae(batch)
-            x = encodings.reshape(current_batch_size, 1, input_dim, input_dim)
-
         # Run our model & get outputs
-        y_hat = model.forward(x)
-        batch_loss = criterion(y_hat, x)
+        y_hat = model.forward(batch)
+        with torch.no_grad():
+            batch = (batch * 255).clamp(0, 1).long()
+        batch_loss = criterion(y_hat, batch)
 
         # Backprop
         batch_loss.backward()
@@ -209,14 +178,10 @@ for epoch in range(epochs):
             batch = batch.to(device)
             current_batch_size = batch.shape[0]
 
-            with torch.no_grad():
-                # Get Encodings from vq_vae
-                _, _, _, encodings = vq_vae(batch)
-                x = encodings.reshape(current_batch_size, 1, input_dim, input_dim)
-
             # Run our model & get outputs
-            y_hat = model.forward(x)
-            batch_loss = criterion(y_hat, x)
+            y_hat = model.forward(batch)
+            batch = (batch * 255).clamp(0, 1).long()
+            batch_loss = criterion(y_hat, batch)
 
             # Add the batch's loss to the total loss for the epoch
             val_loss += batch_loss.item()
@@ -265,14 +230,10 @@ with torch.no_grad():
         batch = batch.to(device)
         current_batch_size = batch.shape[0]
 
-        with torch.no_grad():
-            # Get Encodings from vq_vae
-            _, _, _, encodings = vq_vae(batch)
-            x = encodings.reshape(current_batch_size, 1, input_dim, input_dim)
-
         # Run our model & get outputs
-        y_hat = model.forward(x)
-        batch_loss = criterion(y_hat, x)
+        y_hat = model.forward(batch)
+        batch = (batch * 255).clamp(0, 1).long()
+        batch_loss = criterion(y_hat, batch)
 
         # Add the batch's loss to the total loss for the epoch
         test_loss += batch_loss.item()
@@ -280,14 +241,11 @@ test_loss = test_loss / len(test_dataloader)
 print(f"Test Loss: {test_loss}")
 
 # Generate samples
-target_shape = (sample_batch_size, input_dim, input_dim, vq_vae_embedding_dim)
 image_shape = (sample_batch_size, input_channels, input_dim, input_dim)
 for i in range(num_sample_batches):
-    # Sample from model
-    sample = model.sample(image_shape, device)
-    # Feed into VQ-VAE
-    sample = sample.flatten(start_dim=1).view(-1, 1)
-    sample = vq_vae.quantize_and_decode(sample, target_shape, device)
+    with torch.no_grad():
+        # Sample from model
+        sample = model.sample(image_shape, device) / 255.0
     # Convert to image
     sample = sample.permute(0, 2, 3, 1).detach().cpu().numpy()
     # Save
