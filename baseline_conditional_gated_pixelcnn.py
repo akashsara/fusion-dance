@@ -173,7 +173,7 @@ for epoch in range(epochs):
         # Run our model & get outputs
         y_hat = model(batch, conditioning)
         with torch.no_grad():
-            batch = (batch * 255).clamp(0, 1).long()
+            batch = (batch.clamp(0, 1) * 255).long()
         batch_loss = criterion(y_hat, batch)
 
         # Backprop
@@ -197,7 +197,7 @@ for epoch in range(epochs):
 
             # Run our model & get outputs
             y_hat = model(batch, conditioning)
-            batch = (batch * 255).clamp(0, 1).long()
+            batch = (batch.clamp(0, 1) * 255).long()
             batch_loss = criterion(y_hat, batch)
 
             # Add the batch's loss to the total loss for the epoch
@@ -251,7 +251,7 @@ with torch.no_grad():
 
         # Run our model & get outputs
         y_hat = model(batch, conditioning)
-        batch = (batch * 255).clamp(0, 1).long()
+        batch = (batch.clamp(0, 1) * 255).long()
         batch_loss = criterion(y_hat, batch)
 
         # Add the batch's loss to the total loss for the epoch
