@@ -10,6 +10,9 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 
+import sys
+
+sys.path.append("./")
 import utils.data as data
 from models import vqvae, gated_pixelcnn
 
@@ -52,6 +55,7 @@ num_generations = 10000
 batch_size = 32
 num_sample_batches = (num_generations // batch_size) + 1
 input_dim = image_size // (2 ** vq_vae_model_config["num_layers"])
+conditioning_info_file = "data\\Pokemon\\metadata.joblib"
 conditioning_info_columns = ["type1", "type2", "shape"]
 sample_conditioning_dict = {"type1": 1, "type2": 2, "shape": 1}
 output_dir = ""
@@ -76,7 +80,7 @@ vq_vae.eval()
 vq_vae.to(device)
 
 checkpoint = torch.load(model_path, map_location=device)
-label_handler = data.ConditioningLabelsHandlerFromSaved(checkpoint["encoding_dict"])
+label_handler = data.ConditioningLabelsHandlerFromSaved(conditioning_info_file, conditioning_info_columns, checkpoint["encoding_dict"])
 model_config["conditioning_size"] = label_handler.get_size()
 
 # Create Model
