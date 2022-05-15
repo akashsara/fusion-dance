@@ -115,8 +115,21 @@ class ConditioningLabelsHandlerFromSaved:
     In either case, the first column is used for setting up our label encoder.
     This is because the first column is mandatory for all data.
     """
-
-    def __init__(self, encoding_dict):
+    def __init__(self, label_file, label_columns, encoding_dict):
+        """
+        TODO: Messed up here by not saving column_unique_values_dict
+        So random sampling won't work without that data.
+        So the datafile has to be passed here as well right now.
+        The fix is simple but would require modifying the model files.
+        Or retraining the models entirely.
+        So leaving it as is.
+        """
+        column_unique_values_dict = {}
+        df = pd.DataFrame(joblib.load(label_file)).T
+        for label_column in label_columns:
+            temp = df[~df[label_column].isnull()][label_column].unique()
+            column_unique_values_dict[label_column] = temp
+        self.column_unique_values_dict = column_unique_values_dict
         self.encoding_dict = encoding_dict
         self.reverse_encoding_dict = {y: x for x, y in encoding_dict.items()}
         self.conditioning_size = len(self.encoding_dict)
