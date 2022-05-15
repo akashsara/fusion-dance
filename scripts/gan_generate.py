@@ -17,7 +17,7 @@ np.random.seed(seed)
 _ = torch.manual_seed(seed)
 
 # GAN Config
-experiment_name = "sprites_gan_v1"
+experiment_name = "pokemon_gan_v1"
 epoch_to_load = 24
 latent_dim = 100
 generator_num_filters = 64
@@ -30,8 +30,8 @@ num_sample_batches = (num_generations // batch_size) + 1
 
 # Data Config
 model_prefix = f"outputs\\{experiment_name}"
-model_path = os.path.join(model_prefix, "models", f"epoch_{epoch_to_load}_model.pt")
-generated_dir = os.path.join("outputs", experiment_name, "generated_samples")
+model_path = os.path.join(model_prefix, f"epoch_{epoch_to_load}_model.pt")
+generated_dir = os.path.join("data", "model_outputs_for_fid", experiment_name)
 
 if not os.path.exists(generated_dir):
     os.makedirs(generated_dir)

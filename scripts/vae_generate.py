@@ -36,7 +36,7 @@ batch_size = 32
 num_dataloader_workers = 0
 model_prefix = f"outputs\\{experiment_name}"
 model_path = os.path.join(model_prefix, "model.pt")
-generated_dir = os.path.join("outputs", experiment_name, "latent_samples")
+generated_dir = os.path.join("data", "model_outputs_for_fid", experiment_name)
 
 if not os.path.exists(generated_dir):
     os.makedirs(generated_dir)
