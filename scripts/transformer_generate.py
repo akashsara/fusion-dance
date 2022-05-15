@@ -43,8 +43,9 @@ num_attention_heads = 4  # Default: 12
 resid_pdrop = 0.5 # Default: 0.1
 
 # Generation Config
-generation_batches = 5
-generation_batch_size = 32
+num_generations = 10000
+batch_size = 32
+num_sample_batches = (num_generations // batch_size) + 1
 generation_temperature = 0.5
 # If set to int > 0, all ngrams of that size can only occur once.
 no_repeat_ngram_size = 0 
@@ -126,9 +127,9 @@ with torch.no_grad():
     bg1, bg2 = encodings[counts.topk(k=2, largest=True).indices].cpu().numpy()
 
     # Generate New Images
-    for i in tqdm(range(generation_batches)):
-        bg1_inputs = torch.zeros((generation_batch_size // 2, 1)).int() + bg1
-        bg2_inputs = torch.zeros((generation_batch_size // 2, 1)).int() + bg2
+    for i in tqdm(range(num_sample_batches)):
+        bg1_inputs = torch.zeros((batch_size // 2, 1)).int() + bg1
+        bg2_inputs = torch.zeros((batch_size // 2, 1)).int() + bg2
         input_ids = torch.cat((bg1_inputs, bg2_inputs)).to(device)
         generated = model.generate(
             input_ids=input_ids,
@@ -149,5 +150,5 @@ with torch.no_grad():
         )
         generated = generated.permute(0, 2, 3, 1).detach().cpu().numpy()
         for j, image in enumerate(generated):
-            filename = f"{(generation_batch_size * i) + j}.png"
+            filename = f"{(batch_size * i) + j}.png"
             plt.imsave(os.path.join(generated_dir, filename), image)

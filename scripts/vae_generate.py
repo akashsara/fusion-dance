@@ -27,8 +27,9 @@ latent_dim = 256
 small_conv = False  # To use the 1x1 convolution layer
 
 # Generation Config
-generation_batches = 5
-generation_batch_size = 32
+num_generations = 10000
+batch_size = 32
+num_sample_batches = (num_generations // batch_size) + 1
 
 # Data Config
 batch_size = 32
@@ -60,17 +61,14 @@ model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 model.to(device)
 
-all_embeddings = []
-all_filenames = []
-all_color_ids = []
 with torch.no_grad():
-    for iteration in tqdm(range(generation_batches)):
+    for iteration in tqdm(range(num_sample_batches)):
         embeddings = embeddings = torch.rand(
-            (generation_batch_size, latent_dim), device=device
+            (batch_size, latent_dim), device=device
         )
         generated = model.decoder(embeddings)
 
         generated = generated.permute(0, 2, 3, 1).detach().cpu().numpy()
         for j, image in enumerate(generated):
-            filename = f"{(generation_batch_size * iteration) + j}.png"
+            filename = f"{(batch_size * iteration) + j}.png"
             plt.imsave(os.path.join(generated_dir, filename), image)

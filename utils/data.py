@@ -102,6 +102,84 @@ class ConditioningLabelsHandler:
     def save(self, output_file):
         joblib.dump(self.encoding_dict, output_file)
 
+class ConditioningLabelsHandlerFromSaved:
+    """
+    A class to handle conditioning information for certain models.
+    If a single column is given, each call returns a one hot vector.
+    For multiple columns, we treat it as a multiclass system.
+    So each call would return an n-hot vector.
+    If there were 2 columns, we would have the same one hot vector as above.
+    BUT, we would have two instances of "1" in this vector.
+    Note that the second may be optional as there may be cases where
+    certain data can have 1 or 2 labels.
+    In either case, the first column is used for setting up our label encoder.
+    This is because the first column is mandatory for all data.
+    """
+
+    def __init__(self, encoding_dict):
+        self.encoding_dict = encoding_dict
+        self.reverse_encoding_dict = {y: x for x, y in encoding_dict.items()}
+        self.conditioning_size = len(self.encoding_dict)
+
+    def __call__(self, keys):
+        if keys.ndim == 0:
+            return self.encoding_dict[keys]
+        elif keys.ndim == 1:
+            vector = [0] * self.conditioning_size
+            for key in keys:
+                vector[self.encoding_dict[key]] = 1
+            return vector
+        elif keys.ndim == 2:
+            vectors = []
+            for items in keys: 
+                vector = [0] * self.conditioning_size
+                for key in items:
+                    vector[self.encoding_dict[key]] = 1
+                vectors.append(vector)
+            return vectors
+
+    def reverse_transform(self, label):
+        label = np.array(label)
+        # Single number
+        if label.ndim == 0:
+            return self.reverse_encoding_dict[int(label)]
+        # Single array of numbers
+        elif label.ndim == 1:
+            return [self.reverse_encoding_dict[int(x)] for x in label]
+        # (batch_size, N)
+        elif label.ndim == 2:
+            return [[self.reverse_encoding_dict[int(x)] for x in row] for row in label]
+
+    def vector_to_text(self, vector):
+        vector = np.array(vector)
+        if vector.ndim == 1:
+            vector = np.flatnonzero(vector)
+            return self.reverse_transform(vector)
+        elif vector.ndim == 2:
+            return [self.reverse_transform(np.flatnonzero(row)) for row in vector]
+
+    def sample_conditions(self, num_samples, columns):
+        vectors = []
+        for _ in range(num_samples):
+            vector = [0] * self.conditioning_size
+            for column, column_type in columns.items():
+                # Ignore column
+                if column_type == 0:
+                    pass
+                # Always use column
+                elif column_type == 1:
+                    choice = random.choice(self.column_unique_values_dict[column])
+                    vector[self.encoding_dict[choice]] = 1
+                # Leave it to luck (for secondary things like type2)
+                elif column_type == 2 and random.choice([True, True, True, False, False]):
+                    choice = random.choice(self.column_unique_values_dict[column])
+                    vector[self.encoding_dict[choice]] = 1
+            vectors.append(vector)
+        return vectors
+
+    def get_size(self):
+        """Returns the size of the conditioning vector"""
+        return self.conditioning_size
 
 class CustomDataset(torch.utils.data.Dataset):
     """

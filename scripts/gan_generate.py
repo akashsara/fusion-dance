@@ -1,5 +1,5 @@
 """
-Generate images using a VAE.
+Generate images using a GAN.
 """
 import os
 import sys
@@ -24,12 +24,11 @@ generator_num_filters = 64
 num_output_channels = 3
 
 # Generation Config
-generation_batches = 5
-generation_batch_size = 32
+num_generations = 10000
+batch_size = 32
+num_sample_batches = (num_generations // batch_size) + 1
 
 # Data Config
-batch_size = 32
-num_dataloader_workers = 0
 model_prefix = f"outputs\\{experiment_name}"
 model_path = os.path.join(model_prefix, "models", f"epoch_{epoch_to_load}_model.pt")
 generated_dir = os.path.join("outputs", experiment_name, "generated_samples")
@@ -53,16 +52,13 @@ model.load_state_dict(checkpoint["generator_model_state_dict"])
 model.eval()
 model.to(device)
 
-all_embeddings = []
-all_filenames = []
-all_color_ids = []
 with torch.no_grad():
-    for iteration in tqdm(range(generation_batches)):
+    for iteration in tqdm(range(num_sample_batches)):
         # Generate batch of latent vectors
         noise = torch.randn(batch_size, latent_dim, 1, 1, device=device)
         # Generate fake image batch with G
         generated = model(noise).clamp(min=0, max=1)
         generated = generated.permute(0, 2, 3, 1).detach().cpu().numpy()
         for j, image in enumerate(generated):
-            filename = f"{(generation_batch_size * iteration) + j}.png"
+            filename = f"{(batch_size * iteration) + j}.png"
             plt.imsave(os.path.join(generated_dir, filename), image)
