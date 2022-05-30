@@ -84,11 +84,14 @@ base_dir = "data\\Pokemon\\final\\standard\\test"
 output_dir = "data\\"
 model_prefix = f"outputs\\"
 num_images = 16
-model_list = []
+model_list = {}
+
 is_fusions = "fusions" in base_dir
 output_prefix = "fusions_" if is_fusions else ""
 use_base_model = False
 use_base_dir = False
+use_same_images_as_base_dir = False
+base_caption = output_prefix + "base"
 use_subplot_captions = False
 image_size = 64
 
@@ -105,14 +108,13 @@ vq_vae_small_conv = True  # To use the 1x1 convolution layer
 
 if use_base_dir:
     images_to_load = pick_images(base_dir, num_images, fusions=is_fusions)
-    caption = output_prefix + "base"
     images = get_images(base_dir, images_to_load, resize_size=image_size)
     if use_subplot_captions:
-        fig, axis = make_image_grid(images, caption, images_to_load)
+        fig, axis = make_image_grid(images, base_caption, images_to_load)
     else:
-        fig, axis = make_image_grid(images, caption)
-    plt.savefig(os.path.join(output_dir, f"{caption}.png"))
-    print(caption)
+        fig, axis = make_image_grid(images, base_caption)
+    plt.savefig(os.path.join(output_dir, f"{base_caption}.png"))
+    print(base_caption)
 
 if use_base_model:
     # Setup Device
@@ -149,14 +151,14 @@ if use_base_model:
     plt.savefig(os.path.join(output_dir, f"{caption}.png"))
     print(caption)
 
-for model in model_list:
+for model, filename in model_list.items():
     model_dir = os.path.join(model_prefix, model, "generated")
-    if not use_base_dir:
+    if not use_same_images_as_base_dir:
         images_to_load = pick_images(model_dir, num_images, fusions=is_fusions)
     images = get_images(model_dir, images_to_load, resize_size=image_size)
     if use_subplot_captions:
-        fig, axis = make_image_grid(images, model, images_to_load)
+        fig, axis = make_image_grid(images, filename, images_to_load)
     else:
-        fig, axis = make_image_grid(images, model)
-    plt.savefig(os.path.join(output_dir, f"{output_prefix}{model}.png"))
-    print(model)
+        fig, axis = make_image_grid(images, filename)
+    plt.savefig(os.path.join(output_dir, f"{output_prefix}{filename}.png"))
+    print(filename)
