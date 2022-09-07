@@ -1,8 +1,19 @@
 # Pixel VQ-VAEs for Improved Pixel Art Representation
 
-This is the repository for "Pixel VQ-VAEs for Improved Pixel Art Representation". This work will be presented at EXAG 2022 and our paper can be found [here](https://arxiv.org/abs/2203.12130).
+This is the repository for "Pixel VQ-VAEs for Improved Pixel Art Representation". In short, we introduce the Pixel VQ-VAE, a modified Vector Quantized VAE that has possesses special improvements to better work with pixel art. This work will be presented at EXAG 2022 and our paper can be found [here](https://arxiv.org/abs/2203.12130). 
 
-In short, we introduce the Pixel VQ-VAE, a modified Vector Quantized VAE that has possesses special improvements to better work with pixel art.
+## Citation
+
+If you found this paper or this project useful for your research, please cite us:
+
+```
+@inproceedings{saravanan2022pixelvqvae,
+  title={Pixel VQ-VAEs for Improved Pixel Art Representation},
+  author={Saravanan, Akash and Guzdial, Matthew},
+  booktitle= {{Experimental AI in Games (EXAG), AIIDE 2022 Workshop}},
+  year={2022}
+}
+```
 
 ## Abstract
 
@@ -12,14 +23,25 @@ Machine learning has had a great deal of success in image processing. However, t
 
 Install the required packages via `pip install -r requirements.txt`.
 
-The original data can be found in the original_data folder. This consists of the data obtained by merging different Pokemon game data and running a deduplication program. This data was obtained from veekun. For specific instructions on recreating this work please refer to [this](data/readme.md).
+The original data can be found in the original_data folder. This consists of the data obtained by merging different Pokemon game data and running a deduplication program. This data was obtained from [veekun](https://veekun.com/dex/downloads). For specific instructions on recreating this work please refer to [this](data/readme.md).
 
+`vq_vae.py`
 
-To train the models, fill up the config section of the respective model script and run. 
+This runs the training script for the Pixel VQ-VAE. Simply fill up the config and run!
 
-<!-- MSE and SSIM scores are computed in the notebooks. We use the [pytorch_fid](https://github.com/mseitzer/pytorch-fid) package to compute the FID scores. -->
+`scripts/compute_metrics_from_images.py`
 
-All models automatically generate and save outputs for the test set (including fusions if the test set uses them). 
+This computes the SSIM and MSE metrics.
+
+`gated_pixelcnn_prior.py`
+
+This script trains the PixelCNN for generating images using the Pixel VQ-VAE encodings.
+
+`python -m pytorch_fid path/to/dataset1 path/to/dataset2`
+
+This computes the FID scores for generated outputs.
+
+All models automatically generate and save outputs for the test set.
 
 ## Fusion Dance?
 
