@@ -1,3 +1,9 @@
+"""
+Disclaimer: This script contains older code and may not work as is.
+This script is responsible for creating "inpainting" data.
+Essentially generating silhouettes for Pokemon.
+The idea was to use a model to fill out these silhouettes.
+"""
 import os
 from PIL import Image
 import numpy as np

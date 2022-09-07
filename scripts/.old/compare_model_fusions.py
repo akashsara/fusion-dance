@@ -1,4 +1,5 @@
 """
+Disclaimer: This script contains older code and may not work as is.
 Samples N fusions from the given data. That is, it gets the corresponding base
 and fusee images along with the fusion image. This is done N times.
 Then for each model specified, it loads the model.

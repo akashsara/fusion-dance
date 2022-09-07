@@ -1,4 +1,5 @@
 """
+Disclaimer: This script contains older code and may not work as is.
 Only for CNNPrior
 Given the test set directory
 Load model, compute outputs and calculate MSE & SSIM

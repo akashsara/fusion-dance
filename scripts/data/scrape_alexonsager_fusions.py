@@ -1,4 +1,9 @@
-# Script to scrape fusions from AlexOnsager
+"""
+Disclaimer: This script contains older code and may not work as is.
+This is a small script to scrape fusions from AlexOnsager.
+Please be respectful of other people's websites and don't send tons of requests
+per second.
+"""
 import requests
 import time
 from PIL import Image

@@ -1,3 +1,10 @@
+"""
+Disclaimer: This script contains older code and may not work as is.
+The Infinite Fusion games uses their own Pokedex numbers.
+This script replaces these numbers with the original Pokedex numbers.
+Fake Pokemon are removed.
+"""
+
 # Simply renames the misnamed files
 # By using the mapping csv 
 import pandas as pd

@@ -82,9 +82,13 @@ def make_image_grid(images, title, subplot_captions=None):
 
 base_dir = "data\\Pokemon\\final\\standard\\test"
 output_dir = "data\\"
-model_prefix = f"outputs\\"
+model_prefix = f"data\\model_outputs_for_fid"
 num_images = 16
-model_list = {}
+model_list = {
+    "conditional_gated_pixelcnn_v2.6": "Pixel VQ-VAE HiRes",
+    "conditional_gated_pixelcnn_v1.4": "Pixel VQ-VAE MedRes",
+    "conditional_gated_pixelcnn_v3.4": "Pixel VQ-VAE LowRes"
+}
 
 is_fusions = "fusions" in base_dir
 output_prefix = "fusions_" if is_fusions else ""

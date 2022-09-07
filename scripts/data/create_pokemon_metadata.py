@@ -1,3 +1,19 @@
+"""
+This files compiles data from several datasets and combines them.
+In addition it handles several exceptions and edge cases.
+The final data contains the following attributes for all Pokemon:
+    - height
+    - weight
+    - egg group 1
+    - egg group 2
+    - color
+    - shape
+    - type 1
+    - type 2
+
+This information is used in any script that uses a conditional PixelCNN.
+"""
+
 import os
 import sys
 import pandas as pd

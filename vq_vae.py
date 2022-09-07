@@ -1,3 +1,6 @@
+"""
+Primary code to train the Pixel VQ-VAE.
+"""
 import os
 
 import matplotlib.pyplot as plt
@@ -33,9 +36,9 @@ num_layers = 0
 num_embeddings = 256
 embedding_dim = 32
 commitment_cost = 0.25
-use_max_filters = True
+use_max_filters = True # PixelSight Layer
 max_filters = 512
-small_conv = True  # To use the 1x1 convolution layer
+small_conv = True  # Adapter Layer
 
 # Loss Config
 use_sum = False  # Use a sum instead of a mean for our loss function

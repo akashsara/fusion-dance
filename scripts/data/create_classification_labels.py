@@ -1,3 +1,9 @@
+"""
+Disclaimer: This script contains older code and may not work as is.
+This script is responsible for generating classification labels for any dataset
+specified in the config.
+"""
+
 import os
 import sys
 import pandas as pd

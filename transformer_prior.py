@@ -1,3 +1,6 @@
+"""
+Trains a transformer prior to generate images using a VQ-VAE's encodings.
+"""
 import os
 
 import matplotlib.pyplot as plt

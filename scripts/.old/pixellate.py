@@ -1,4 +1,7 @@
-# Simple Script to see how the images look when pixellated
+"""
+Disclaimer: This script contains older code and may not work as is.
+This is a simple script to see how the images look when pixellated.
+"""
 import cv2 as cv
 import numpy as np
 import os

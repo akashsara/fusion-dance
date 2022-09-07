@@ -1,4 +1,5 @@
 """
+Disclaimer: This script contains older code and may not work as is.
 Make a small subset of the training data.
 This is removed entirely and kept aside for testing purposes.
 We use the paritioned training data for this as it is the largest.

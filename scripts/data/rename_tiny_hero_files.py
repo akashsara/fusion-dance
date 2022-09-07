@@ -1,3 +1,8 @@
+"""
+Disclaimer: This script contains older code and may not work as is.
+This script organizes the TinyHero dataset into a single folder where each
+sprite is labeled with the format {id}_{pose}
+"""
 import os
 
 source_dir = "data\\TinyHero\\final" # Path to the tiny hero directory

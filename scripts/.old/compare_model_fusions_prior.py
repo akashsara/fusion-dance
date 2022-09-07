@@ -1,4 +1,5 @@
 """
+Disclaimer: This script contains older code and may not work as is.
 Samples N images from the given data
 Load the original VQ-VAE and the prior model.
 Only supports CNNPrior

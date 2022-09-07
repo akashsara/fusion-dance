@@ -1,3 +1,7 @@
+"""
+Helper function to convert all RGBA files in a directory to RGB.
+I no longer remember what I used this for.
+"""
 import os
 import sys
 from PIL import Image

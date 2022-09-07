@@ -1,4 +1,5 @@
 """
+Disclaimer: This script contains older code and may not work as is.
 Splits the fusion images into train/test/val directories.
 The split is based on the split done for the original set of images.
 """

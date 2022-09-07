@@ -1,19 +1,26 @@
-# Fusion Dance
+# Pixel VQ-VAEs for Improved Pixel Art Representation
 
-This is the repository for "Fusion Dance: Generating New Content via Fusion of Existing Content". The goal of this project is to generate new Pokemon by blending latent representations of different Pokemon. We experiment with a wide variety of models for this task.
+This is the repository for "Pixel VQ-VAEs for Improved Pixel Art Representation". This work will be presented at EXAG 2022 and our paper can be found [here](https://arxiv.org/abs/2203.12130).
+
+In short, we introduce the Pixel VQ-VAE, a modified Vector Quantized VAE that has possesses special improvements to better work with pixel art.
 
 ## Abstract
 
-Creating new content for video games is a time and resource-intensive task. While machine learning models have performed admirably in other fields, a lack of data and controllability for these models makes it difficult to adapt them for video game content creation. We propose an autoencoder-based approach to learning representations of game assets, and then explore how the combination or blending of these representations can lead to new assets. We experimentally verify this approach using Pokemon from the Pokemon video game series. Our experimental results indicate that the blending of representations is a worthwhile pursuit towards the generation of novel content.
+Machine learning has had a great deal of success in image processing. However, the focus of this work has largely been on realistic images, ignoring more niche art styles such as pixel art. Additionally, many traditional machine learning models that focus on groups of pixels do not work well with pixel art, where individual pixels are important. We propose the Pixel VQ-VAE, a specialized VQ-VAE model that learns representations of pixel art. We show that it outperforms other models in both the quality of embeddings as well as performance on downstream tasks.
 
 ## Usage
 
 Install the required packages via `pip install -r requirements.txt`.
 
-The original data can be found in the original_data folder. The final preprocessed data used for modeling can be obtained by running the `preprocess.py` script. Fusion data can be obtained from the [FusionSprites repository](https://github.com/Aegide/FusionSprites). Note that you will need to run the `fix_infinite_fusion_filenames.py` to fix the filenames.
+The original data can be found in the original_data folder. This consists of the data obtained by merging different Pokemon game data and running a deduplication program. This data was obtained from veekun. For specific instructions on recreating this work please refer to [this](data/readme.md).
+
 
 To train the models, fill up the config section of the respective model script and run. 
 
 <!-- MSE and SSIM scores are computed in the notebooks. We use the [pytorch_fid](https://github.com/mseitzer/pytorch-fid) package to compute the FID scores. -->
 
 All models automatically generate and save outputs for the test set (including fusions if the test set uses them). 
+
+## Fusion Dance?
+
+If you're wondering about the name, that is because this project was originally started to attempt to generate new Pokemon via the fusion of existing Pokemon, much like the hand-crafted fusions of old. This is also why you might find some seemingly unrelated scripts and code in this repository. While I cannot guarantee that they all will still work simply due to the significant changes that have happened since then, feel free to get in touch or open up an issue if you're interested in fusing Pokemon (or other content) using AI!
