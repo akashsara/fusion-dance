@@ -39,7 +39,7 @@ vq_vae_model_config = {
 vq_vae_model_path = os.path.join(f"outputs\\{vq_vae_model_name}", "model.pt")
 
 # Pixel CNN Config
-model_name = f"gated_pixelcnn_v1"
+model_name = f"conditional_gated_pixelcnn_v1"
 model_config = {
     "c_in": 1,
     "c_hidden": 256,
@@ -55,6 +55,9 @@ num_generations = 10000
 batch_size = 32
 num_sample_batches = (num_generations // batch_size) + 1
 input_dim = image_size // (2 ** vq_vae_model_config["num_layers"])
+conditioning_info_file = "data\\Pokemon\\metadata.joblib"
+conditioning_info_columns = ["type1", "type2", "shape"]
+sample_conditioning_dict = {"type1": 1, "type2": 2, "shape": 1}
 output_dir = ""
 
 ################################################################################
@@ -77,9 +80,11 @@ vq_vae.eval()
 vq_vae.to(device)
 
 checkpoint = torch.load(model_path, map_location=device)
+label_handler = data.ConditioningLabelsHandlerFromSaved(conditioning_info_file, conditioning_info_columns, checkpoint["encoding_dict"])
+model_config["conditioning_size"] = label_handler.get_size()
 
 # Create Model
-model = gated_pixelcnn.PixelCNN(**model_config)
+model = gated_pixelcnn.ConditionalPixelCNN(**model_config)
 model.load_state_dict(checkpoint["model_state_dict"])
 model.to(device)
 model.eval()
@@ -93,14 +98,19 @@ target_shape = (batch_size, input_dim, input_dim, vq_vae_model_config["embedding
 image_shape = (batch_size, model_config["c_in"], input_dim, input_dim)
 for i in tqdm(range(num_sample_batches)):
     with torch.no_grad():
+        # Pick some random conditioning info
+        conditioning_info = label_handler.sample_conditions(batch_size, sample_conditioning_dict)
+        conditioning_info = torch.as_tensor(conditioning_info).float().to(device)
         # Sample from model
-        sample = model.sample(image_shape, device)
+        sample = model.sample(image_shape, device, conditioning_info)
         # Feed into VQ-VAE
         sample = sample.flatten(start_dim=1).view(-1, 1)
         sample = vq_vae.quantize_and_decode(sample, target_shape, device)
         # Convert to image
         sample = sample.permute(0, 2, 3, 1).detach().cpu().numpy()
     # Save
-    for filename, image in enumerate(sample):
-        filename = f"{(i*batch_size)+filename}.png"
+    for filename, (image, condition) in enumerate(zip(sample, conditioning_info)):
+        conditions = (condition == condition.max()).nonzero().flatten()
+        conditions = "-".join([label_handler.reverse_transform(int(condition)) for condition in conditions])
+        filename = f"{(i*batch_size)+filename}_{conditions}.png"
         plt.imsave(os.path.join(output_dir, filename), image)
